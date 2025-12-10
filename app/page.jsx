@@ -36,7 +36,7 @@ export default function ArtifactGuide() {
       number: '02',
       title: '前往 Claude.ai 登入',
       description: '登入或註冊您的帳號',
-      url: 'https://claude.ai',
+      link: 'https://claude.ai',
       icon: (
         <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
@@ -238,9 +238,55 @@ export default function ArtifactGuide() {
                     <p style={{
                       color: 'rgba(255, 255, 255, 0.5)',
                       fontSize: '14px',
-                      marginBottom: step.url ? '16px' : '0',
+                      marginBottom: (step.url || step.link) ? '16px' : '0',
                       lineHeight: '1.5',
                     }}>{step.description}</p>
+
+                    {step.link && (
+                      <a
+                        href={step.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                          borderRadius: '12px',
+                          padding: '14px 24px',
+                          cursor: 'pointer',
+                          border: 'none',
+                          textDecoration: 'none',
+                          transition: 'all 0.3s ease',
+                          boxShadow: '0 4px 16px rgba(99, 102, 241, 0.3)',
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 6px 20px rgba(99, 102, 241, 0.4)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 16px rgba(99, 102, 241, 0.3)';
+                        }}
+                      >
+                        <span style={{
+                          color: '#fff',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                        }}>前往 Claude.ai</span>
+                        <svg
+                          width="16"
+                          height="16"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="#fff"
+                          strokeWidth="2"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                        </svg>
+                      </a>
+                    )}
 
                     {step.url && (
                       <div
