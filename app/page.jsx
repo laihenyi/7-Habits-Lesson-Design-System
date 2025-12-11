@@ -24,8 +24,8 @@ export default function ArtifactGuide() {
       number: '01',
       title: '複製 Published Artifact 網址',
       description: '從分享的連結中複製完整網址',
-      url: 'https://claude.ai/public/artifacts/04c921fc-771a-4a7b-a055-b0dac692880f',
-      shortUrl: 'claude.ai/public/artifacts/04c921fc-...',
+      url: 'https://claude.ai/public/artifacts/249800ed-04e9-4a6b-897f-142b526d498f',
+      shortUrl: 'claude.ai/public/artifacts/249800ed-...',
       icon: (
         <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
           <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.818-1.06a4.5 4.5 0 00-1.242-7.244l-4.5-4.5a4.5 4.5 0 00-6.364 6.364l1.757 1.757" />
