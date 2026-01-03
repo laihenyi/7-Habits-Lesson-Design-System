@@ -135,6 +135,12 @@ export default function ArtifactGuide() {
             lineHeight: '1.2',
           }}>
             啟用 7H+SEL 教案設計
+            <span style={{
+              display: 'block',
+              fontSize: '0.5em',
+              fontWeight: '500',
+              marginTop: '8px',
+            }}>（新！內含學習單產生器）</span>
           </h1>
 
           <p style={{
