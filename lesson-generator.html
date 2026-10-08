@@ -113,12 +113,12 @@ select { font: inherit; color: var(--ink); background: var(--bg); border: 1px so
 <div class="wrap">
   <header>
     <h1>七個習慣教案生成器</h1>
-    <p class="sub">選習慣與年段，AI 發想一份完整的「定義、連結、應用」教案。情境可留空。</p>
+    <p class="sub">選習慣與對象，AI 發想一份完整的「定義、連結、應用」教案。情境可留空。</p>
   </header>
 
   <section class="panel" aria-label="設定">
     <div><span class="lbl">習慣</span><div class="chips" id="habits"></div></div>
-    <div><span class="lbl">年段（決定錯誤範例的層次）</span><div class="bands" id="bands"></div></div>
+    <div><span class="lbl">對象（決定錯誤範例的層次與用語深淺）</span><div class="bands" id="bands"></div></div>
     <div class="f"><label for="topic">教學情境（選填）</label>
       <div class="chips" id="settings" role="group" aria-label="情境場域"></div>
       <input type="text" id="topic" maxlength="120" placeholder="留空，讓 AI 自己想一個具體、少見但真實的情境"></div>
@@ -129,7 +129,7 @@ select { font: inherit; color: var(--ink); background: var(--bg); border: 1px so
     </div>
   </section>
 
-  <div class="empty" id="empty">選好習慣與年段，按「生成教案」。每次生成都會換一個情境。</div>
+  <div class="empty" id="empty">選好習慣與對象，按「生成教案」。每次生成都會換一個情境。</div>
 
   <article class="sheet" id="sheet" hidden>
     <div class="sheet-head">
@@ -716,16 +716,35 @@ var DG = (function () {
 (function () {
   var HABITS = JSON.parse(document.getElementById('habits-data').textContent);
   var NUM = ['一', '二', '三', '四', '五', '六', '七', '八'];
+  // 三類對象：依心智發展、生活境遇、用語深淺設定；refs 是 HABITS 範例（0 國小中年級、1 國中、2 高年級／國中）中拿來當結構參考的索引
   var BANDS = [
-    { n: '低年段', g: '國小中年級', lv: '行為層次', tip: '動作快、照做，不等於有選擇。' },
-    { n: '中年段', g: '國中', lv: '歸因層次', tip: '把決定權或責任交給別人。' },
-    { n: '高年段', g: '高年級／國中', lv: '策略層次', tip: '重複無效動作、放棄溝通、折衷。' }
+    { n: '低年段', g: '幼兒園、國小1~2年級', lv: '行為層次', tip: '動作快、照做、很聽話，不等於有自己的選擇。', ui: '短句、具體畫面、家裡與班級', refs: [0],
+      dev: '以具體、當下、看得到摸得到的經驗思考；專注時間短；還在學習分辨「我想要」和「別人想要」，容易把規則當成對錯，習慣聽從大人。',
+      life: '生活圈是家裡和幼兒園／低年級教室：玩具、點心、排隊、洗手、收書包、午睡、和手足或同學搶東西、被大人提醒。',
+      lang: '句子要短（定義盡量 20 字內），用具體動作和畫面，一次只講一個概念；不用「責任、尊重、情緒管理」這類抽象詞；判斷題寫成「小朋友做了什麼」的小故事；理由只用一句「因為…」；教師事件用孩子聽得懂的小事，50 字內。參考範例是較大孩子的，要明顯改寫得更簡單。',
+      tools: '只選簡單、能用圖畫或貼紙完成的工具：停步思考圖、控制圈圖、優先順序表、流程圖、優缺點分析圖。甘特圖、魚骨圖、線型圖、長條圖不適合。diagram 內容要少而具體，每個清單 2~3 項，每格 8 個字內。' },
+    { n: '中高年段', g: '國小3~6年級', lv: '歸因層次', tip: '把決定權或責任交給別人（他先…我才…）。', ui: '具體例子、同儕與公平、班級與家裡', refs: [0, 2],
+      dev: '具體運思期：能比較不同人的看法、理解因果，很在意公平和同儕關係，對「誰的錯」特別敏感，開始有群體歸屬感；抽象概念要搭配例子才懂。',
+      life: '班級分組、下課和同學的互動、班級群組、功課與才藝補習、手足、手機開始成為生活的一部分、被老師與家長比較。',
+      lang: '定義可以兩句話，簡單的抽象詞可以用但要配例子；判斷題用貼近他們的真實事件；教師事件可到 80 字，要有一個孩子會共鳴的小失敗。',
+      tools: '多數工具都能用；甘特圖、魚骨圖、線型圖、長條圖以 5~6 年級為佳，3~4 年級請改選其他工具。' },
+    { n: '國高中', g: '國中、高中', lv: '策略層次', tip: '重複無效動作、放棄溝通、折衷、為了面子。', ui: '抽象與兩難、自主、社群與課業', refs: [1, 2],
+      dev: '形式運思：能抽象思考、假設和反思，在意自我認同、面子與同儕評價，渴望自主、反感說教，開始質疑規則與權威。',
+      life: '班群與社群訊息、段考與升學壓力、社團與學長姐、手機使用的親子協議、與父母的自主拉扯、零用錢或打工、同儕冷落與比較。',
+      lang: '可用抽象概念和兩難情境；語氣平等、不說教、不幼稚，不要用卡通化的比喻；教師事件可到 100 字，要有真實的狼狽感；判斷題的錯誤範例要有「聽起來很合理」的理由。',
+      tools: '14 個工具都能用，鼓勵選魚骨圖、統合綜效圖、甘特圖、線型圖等需要分析與規劃的工具；diagram 內容可較完整。' }
   ];
-  var NUDGES = {
-    '學校': ['下課十分鐘', '營養午餐', '打掃時間', '分組報告', '班級群組', '體育課', '社團活動', '段考前一週', '校外教學', '調座位', '借東西沒還', '比賽輸了之後', '早自習', '值日生', '才藝表演前'],
-    '家庭': ['寫完功課才能玩手機', '週末誰洗碗', '跟手足搶遙控器', '零用錢怎麼花', '早上出門前的十分鐘', '晚餐桌上的對話', '被爸媽唸之後', '房間整理', '補習與興趣的取捨', '全家出遊前的決定', '幫忙照顧弟妹', '睡前的拖延'],
-    '': ['下課十分鐘', '營養午餐', '分組報告', '班級群組', '段考前一週', '借東西沒還', '手機與零用錢', '早上出門前的十分鐘', '被爸媽唸之後', '週末誰洗碗']
-  };
+  var NUDGES = [
+    { '學校': ['排隊洗手', '下課搶玩具', '午餐收餐盤', '輪流玩溜滑梯', '收玩具時間', '同學弄壞了我的作品', '當小老師', '午睡前'],
+      '家庭': ['睡前刷牙', '玩具散一地', '跟哥哥姐姐搶玩具', '不想吃青菜', '出門前穿鞋', '看卡通時間到了', '幫忙擦桌子', '被媽媽提醒之後'],
+      '': ['排隊洗手', '下課搶玩具', '睡前刷牙', '玩具散一地', '收玩具時間', '不想吃青菜'] },
+    { '學校': ['下課的推擠與告狀', '分組報告有人不做事', '班級群組', '體育課比賽輸了', '借東西沒還', '調座位', '值日生', '被同學取綽號', '才藝表演前'],
+      '家庭': ['寫完功課才能玩手機', '週末誰洗碗', '跟手足搶遙控器', '零用錢怎麼花', '被爸媽唸之後', '補習與興趣的取捨', '幫忙照顧弟妹', '睡前的拖延'],
+      '': ['下課的推擠與告狀', '分組報告', '班級群組', '借東西沒還', '週末誰洗碗', '被爸媽唸之後'] },
+    { '學校': ['分組報告的分工', '班群截圖與被傳話', '段考前一週', '社團幹部與學長姐', '被同學冷落', '班會的討論', '校慶籌備', '抄作業的誘惑'],
+      '家庭': ['手機使用的協議', '與父母爭執之後', '補習或社團的取捨', '零用錢與打工', '被拿來和手足比較', '家人的期待與自己想走的路', '晚歸與門禁', '全家出遊的決定'],
+      '': ['分組報告的分工', '班群截圖', '段考前一週', '手機使用的協議', '與父母爭執之後', '零用錢與打工'] }
+  ];
   var SETTINGS = ['學校', '家庭'];
   var FIELDS = ['scene', 'def', 'hear', 'event', 'failure', 'ask', 'out', 'tool', 'toolDesc', 'ifthen', 'when', 'revisit'];
   var downloads = null;
@@ -766,7 +785,8 @@ var DG = (function () {
       el.type = 'button'; el.className = 'band'; el.setAttribute('aria-pressed', i === st.band);
       var t = document.createElement('b'); t.textContent = b.n + '（' + b.g + '）';
       var s = document.createElement('span'); s.textContent = b.lv + '：' + b.tip;
-      el.append(t, s);
+      var u = document.createElement('span'); u.textContent = '用語：' + b.ui;
+      el.append(t, s, u);
       el.onclick = function () { st.band = i; persist(); renderControls(); };
       $('bands').appendChild(el);
     });
@@ -903,17 +923,21 @@ var DG = (function () {
 
   function buildPrompt() {
     var h = HABITS[st.habit], b = BANDS[st.band];
-    var ref = h.ex[st.band] || h.ex[0] || {};
+    var refs = b.refs.map(function (k) { return h.ex[k]; }).filter(Boolean);
     var field = st.setting === '學校' ? '場域：學校。事件發生在校園裡（教室、走廊、操場、與同學老師之間），教師事件用老師在學校的失敗經驗。'
       : st.setting === '家庭' ? '場域：家庭。事件發生在家裡（與父母、手足、家人的相處，作息、手機、家事、零用錢等），教師事件用老師自己在家庭裡的失敗經驗；判斷題與工具內容也要用家裡的情況。'
       : '';
     var scene = (st.topic.trim()
       ? '教學情境（老師指定）：' + st.topic.trim()
       : '老師沒有指定情境。請你自己發想一個貼近學生、具體、少見但真實的情境（這次的靈感方向：' + st.nudge + '，可以不採用）。') + (field ? '\n' + field : '');
-    var sampleJson = JSON.stringify({ def: ref.def, judgments: ref.judgments, hear: ref.hear, event: ref.event, ask: ref.ask, out: ref.out, tool: ref.tool, ifthen: ref.ifthen, revisit: ref.revisit });
+    var sampleJson = JSON.stringify(refs.map(function (ref) { return { 對象: ref.grade, def: ref.def, judgments: ref.judgments, hear: ref.hear, event: ref.event, ask: ref.ask, out: ref.out, tool: ref.tool, ifthen: ref.ifthen, revisit: ref.revisit }; }));
     return [
       '你是品格教育與社會情緒學習的課程設計者，要為台灣的老師設計一份「定義、連結、應用」三步驟的完整教案。',
-      '習慣' + NUM[st.habit] + '「' + h.name + '」。年段：' + b.n + '（' + b.g + '）；錯誤範例要落在「' + b.lv + '」：' + b.tip,
+      '習慣' + NUM[st.habit] + '「' + h.name + '」。對象：' + b.n + '（' + b.g + '）；錯誤範例要落在「' + b.lv + '」：' + b.tip,
+      '對象的心智發展：' + b.dev,
+      '對象的生活境遇：' + b.life,
+      '用語與內容要求：' + b.lang,
+      '工具選擇：' + b.tools,
       scene,
       '創意要求：先在心裡想三個不同的情境角度，選最具體、最不老套的那一個；不要沿用參考範例的情境或句子。',
       '硬性規則：',
@@ -924,7 +948,7 @@ var DG = (function () {
       '5. 不新增與情境無關的事實或數據。',
       '6. 第三步驟「應用」的工具，優先從下列 14 個領導力工具挑一個最適合這個情境的；只有確實沒有合適的才自訂。tool 欄只寫工具名稱，並依該工具的 diagram 格式輸出示範填寫內容，每格要簡短（不超過標示字數）。標 ★ 的是常與本習慣搭配的工具。',
       toolList(),
-      '參考範例（只學結構與語氣）：' + sampleJson,
+      '參考範例（只學結構與語氣；範例的對象年齡可能和這次不同，要依上述心智發展與用語要求重寫，不要照抄情境與句子）：' + sampleJson,
       '只輸出一個 JSON 物件，不要任何其他文字。欄位如下：' + SHAPE
     ].join('\n');
   }
@@ -965,7 +989,7 @@ var DG = (function () {
 
   async function generate() {
     st.topic = $('topic').value;
-    var pool = NUDGES[st.setting] || NUDGES[''];
+    var np = NUDGES[st.band] || NUDGES[1], pool = np[st.setting] || np[''];
     st.nudge = pool[Math.floor(Math.random() * pool.length)];
     persist();
     var o = await run(buildPrompt(), '設計中');
@@ -1005,7 +1029,7 @@ var DG = (function () {
     var cd = curDiagram(); if (!cd.t || !st.plan) return;
     var p = st.plan;
     var q = '以下是一堂品格教案的內容。請為「' + cd.t.name + '」填寫這堂課的示範內容，讓老師能直接拿來示範給學生看。\n'
-      + '習慣' + NUM[st.habit] + '「' + HABITS[st.habit].name + '」，年段：' + BANDS[st.band].n + '（' + BANDS[st.band].g + '）。\n'
+      + '習慣' + NUM[st.habit] + '「' + HABITS[st.habit].name + '」，對象：' + BANDS[st.band].n + '（' + BANDS[st.band].g + '）。\n'
       + '情境：' + p.scene + '\n定義：' + p.def + '\n教師事件：' + p.event + '\n工具用法：' + p.toolDesc + '\n'
       + '工具說明：' + cd.t.desc + '\n'
       + '內容要和上述情境、定義呼應，每格簡短。只輸出一個 JSON 物件，不要任何其他文字，格式：' + cd.t.shape;
