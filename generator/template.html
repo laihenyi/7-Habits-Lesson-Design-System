@@ -1,0 +1,416 @@
+<title>七個習慣教案生成器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;800&display=swap" rel="stylesheet">
+<style>
+/* 版面：上方三個選擇＋一個按鈕，下方是一張可直接編修的教案單，檢查條固定在頂端 */
+:root {
+  --bg: #F3F6F6;
+  --surface: #FFFFFF;
+  --ink: #17262B;
+  --muted: #5B6B70;
+  --line: #D3DCDD;
+  --accent: #0F5F5A;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #DCEEEC;
+  --fail: #B3402A;
+  --fail-soft: #F8E6E1;
+  --ok: #3F7A3A;
+  --ask: #2C5C85;
+  --font-display: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
+  --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1A1D; --surface: #162428; --ink: #E6EEEF; --muted: #9DB0B4; --line: #2A3D42;
+    --accent: #5FC4BB; --accent-ink: #0B1C1E; --accent-soft: #1C3A3B;
+    --fail: #F08C74; --fail-soft: #3A2420; --ok: #8CC784; --ask: #7FB4E0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1A1D; --surface: #162428; --ink: #E6EEEF; --muted: #9DB0B4; --line: #2A3D42;
+  --accent: #5FC4BB; --accent-ink: #0B1C1E; --accent-soft: #1C3A3B;
+  --fail: #F08C74; --fail-soft: #3A2420; --ok: #8CC784; --ask: #7FB4E0;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 400 15px/1.7 var(--font-body); margin: 0; padding-inline: 16px; padding-block: 24px 64px; }
+.wrap { max-width: 880px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1 { font: 800 clamp(26px, 5vw, 36px)/1.25 var(--font-display); margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 6px 0 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 18px; }
+.lbl { font-size: 12px; letter-spacing: .08em; color: var(--muted); font-weight: 700; margin-bottom: 8px; display: block; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: inherit; border: 1px solid var(--line); background: transparent; color: var(--ink); padding: 7px 14px; border-radius: 999px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.bands { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.band { text-align: left; font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.band b { font-weight: 700; }
+.band span { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.band[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+input[type=text], textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; }
+textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { font: inherit; font-weight: 700; border-radius: 8px; padding: 10px 20px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); }
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn.small { padding: 6px 12px; font-size: 13px; font-weight: 500; }
+.btn:disabled { opacity: .5; cursor: default; }
+.status { color: var(--muted); font-size: 14px; min-width: 0; }
+.status.err { color: var(--fail); }
+.nudge { color: var(--muted); font-size: 13px; }
+
+.sheet { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.sheet[hidden] { display: none; }
+.sheet-head { padding: 22px 20px 16px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid var(--line); }
+.kicker { color: var(--accent); font-weight: 700; font-size: 13px; letter-spacing: .06em; }
+.sheet-head h2 { font: 800 clamp(22px, 4vw, 28px)/1.3 var(--font-display); margin: 0; text-wrap: balance; }
+.checks { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2; background: var(--surface); border-bottom: 1px solid var(--line); padding: 10px 20px; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.checks .n { font-weight: 700; font-variant-numeric: tabular-nums; }
+.ck { font-size: 13px; color: var(--muted); display: inline-flex; gap: 5px; align-items: baseline; }
+.ck i { font-style: normal; font-weight: 700; }
+.ck.ok { color: var(--ok); }
+.ck.bad { color: var(--fail); }
+.step { padding: 22px 20px; display: flex; flex-direction: column; gap: 14px; border-bottom: 1px solid var(--line); }
+.step:last-of-type { border-bottom: 0; }
+.step-h { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.step-h .no { font: 800 22px/1 var(--font-display); color: var(--accent); }
+.step-h h3 { font: 700 18px/1.3 var(--font-display); margin: 0; }
+.step-h p { margin: 0; color: var(--muted); font-size: 13px; flex-basis: 100%; }
+.f { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.f > label, .f > .lbl { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .06em; margin: 0; }
+.big textarea { font: 600 17px/1.7 var(--font-display); }
+.judge { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 4px 10px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+.judge .jn { font-weight: 700; color: var(--muted); padding-top: 8px; font-variant-numeric: tabular-nums; }
+.judge .body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.vs { display: flex; gap: 6px; flex-wrap: wrap; }
+.v { font: inherit; font-size: 13px; padding: 3px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
+.v[aria-pressed="true"][data-v="是"] { background: var(--ok); color: var(--bg); border-color: var(--ok); }
+.v[aria-pressed="true"][data-v="不是"] { background: var(--fail); color: var(--bg); border-color: var(--fail); }
+.v[aria-pressed="true"][data-v="再問"] { background: var(--ask); color: var(--bg); border-color: var(--ask); }
+.fail-note { background: var(--fail-soft); border-radius: 6px; padding: 8px 10px; font-size: 13px; color: var(--ink); }
+.fail-note b { color: var(--fail); }
+.foot { padding: 16px 20px 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-top: 1px solid var(--line); }
+.empty { color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 28px 20px; text-align: center; }
+@media (prefers-reduced-motion: no-preference) { .btn, .chip, .band, .v { transition: background .15s, border-color .15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>七個習慣教案生成器</h1>
+    <p class="sub">選習慣與年段，AI 發想一份完整的「定義、連結、應用」教案。情境可留空。</p>
+  </header>
+
+  <section class="panel" aria-label="設定">
+    <div><span class="lbl">習慣</span><div class="chips" id="habits"></div></div>
+    <div><span class="lbl">年段（決定錯誤範例的層次）</span><div class="bands" id="bands"></div></div>
+    <div class="f"><label for="topic">教學情境（選填）</label><input type="text" id="topic" maxlength="120" placeholder="留空，讓 AI 自己想一個具體、少見但真實的情境"></div>
+    <div class="row">
+      <button class="btn" id="gen" type="button">生成教案</button>
+      <button class="btn ghost" id="stop" type="button" hidden>停止</button>
+      <span class="status" id="status" role="status"></span>
+    </div>
+  </section>
+
+  <div class="empty" id="empty">選好習慣與年段，按「生成教案」。每次生成都會換一個情境。</div>
+
+  <article class="sheet" id="sheet" hidden>
+    <div class="sheet-head">
+      <span class="kicker" id="kicker"></span>
+      <h2 id="ptitle"></h2>
+      <div class="f"><label for="scene">情境（一句話）</label><textarea id="scene" rows="1"></textarea></div>
+    </div>
+    <div class="checks" id="checks"></div>
+
+    <section class="step">
+      <div class="step-h"><span class="no">1</span><h3>定義</h3><p>一個定義、三個判斷題、一句學生該聽見的話。</p></div>
+      <div class="f big"><label for="def">定義</label><textarea id="def" rows="2"></textarea></div>
+      <div class="f"><span class="lbl">三個判斷題（至少兩題不是「是」）</span><div id="judges" style="display:flex;flex-direction:column;gap:10px"></div></div>
+      <div class="f"><label for="hear">該聽見</label><textarea id="hear" rows="1"></textarea></div>
+    </section>
+
+    <section class="step">
+      <div class="step-h"><span class="no">2</span><h3>連結</h3><p>老師先說自己的失敗，再問，再等。</p></div>
+      <div class="f"><label for="event">教師事件（含失敗）</label><textarea id="event" rows="3"></textarea></div>
+      <div class="f"><label for="failure">失敗發生的那一句</label><textarea id="failure" rows="1"></textarea></div>
+      <div class="f"><label for="ask">開放提問</label><textarea id="ask" rows="2"></textarea></div>
+      <div class="f"><label for="out">學生產出</label><textarea id="out" rows="2"></textarea></div>
+    </section>
+
+    <section class="step">
+      <div class="step-h"><span class="no">3</span><h3>應用</h3><p>一個工具、一句 if-then、一個回顧時間點。</p></div>
+      <div class="f"><label for="tool">工具</label><textarea id="tool" rows="1"></textarea></div>
+      <div class="f"><label for="toolDesc">工具怎麼用</label><textarea id="toolDesc" rows="2"></textarea></div>
+      <div class="f"><label for="ifthen">if-then 句型</label><textarea id="ifthen" rows="2"></textarea></div>
+      <div class="f"><label for="when">回顧時間點</label><textarea id="when" rows="1"></textarea></div>
+      <div class="f"><label for="revisit">回顧時只問</label><textarea id="revisit" rows="2"></textarea></div>
+    </section>
+
+    <div class="foot">
+      <button class="btn" id="regen" type="button">換一個情境重生成</button>
+      <button class="btn ghost" id="fix" type="button" hidden>請 AI 修正未通過項目</button>
+      <button class="btn ghost" id="copy" type="button">複製全文</button>
+      <button class="btn ghost" id="save" type="button" hidden>下載 .md</button>
+      <span class="status" id="foot-status" role="status"></span>
+    </div>
+  </article>
+</div>
+
+<script type="application/json" id="habits-data">__HABITS__</script>
+<script>
+(function () {
+  var HABITS = JSON.parse(document.getElementById('habits-data').textContent);
+  var NUM = ['一', '二', '三', '四', '五', '六', '七', '八'];
+  var BANDS = [
+    { n: '低年段', g: '國小中年級', lv: '行為層次', tip: '動作快、照做，不等於有選擇。' },
+    { n: '中年段', g: '國中', lv: '歸因層次', tip: '把決定權或責任交給別人。' },
+    { n: '高年段', g: '高年級／國中', lv: '策略層次', tip: '重複無效動作、放棄溝通、折衷。' }
+  ];
+  var NUDGES = ['下課十分鐘', '營養午餐', '打掃時間', '分組報告', '班級群組', '體育課', '社團活動', '段考前一週', '校外教學', '調座位', '借東西沒還', '比賽輸了之後', '早自習', '手機與零用錢', '值日生', '才藝表演前'];
+  var FIELDS = ['scene', 'def', 'hear', 'event', 'failure', 'ask', 'out', 'tool', 'toolDesc', 'ifthen', 'when', 'revisit'];
+  var KEY = 'sevenhabits-generator-v1';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var st = { habit: 0, band: 1, topic: '', plan: null, nudge: '' };
+  var sample = null, ctl = null;
+
+  function load() { try { var s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') st = Object.assign(st, s); } catch (e) {} }
+  function persist() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} }
+  function setStatus(msg, err, id) { var el = $(id || 'status'); el.textContent = msg || ''; el.className = 'status' + (err ? ' err' : ''); }
+
+  function renderControls() {
+    $('habits').innerHTML = '';
+    HABITS.forEach(function (h, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip'; b.setAttribute('aria-pressed', i === st.habit);
+      b.textContent = '習慣' + NUM[i] + '　' + h.name;
+      b.onclick = function () { st.habit = i; persist(); renderControls(); };
+      $('habits').appendChild(b);
+    });
+    $('bands').innerHTML = '';
+    BANDS.forEach(function (b, i) {
+      var el = document.createElement('button');
+      el.type = 'button'; el.className = 'band'; el.setAttribute('aria-pressed', i === st.band);
+      var t = document.createElement('b'); t.textContent = b.n + '（' + b.g + '）';
+      var s = document.createElement('span'); s.textContent = b.lv + '：' + b.tip;
+      el.append(t, s);
+      el.onclick = function () { st.band = i; persist(); renderControls(); };
+      $('bands').appendChild(el);
+    });
+  }
+
+  function autosize(t) { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; }
+
+  function renderJudges() {
+    var box = $('judges'); box.innerHTML = '';
+    st.plan.judgments.forEach(function (j, i) {
+      var row = document.createElement('div'); row.className = 'judge';
+      var n = document.createElement('div'); n.className = 'jn'; n.textContent = (i + 1);
+      var body = document.createElement('div'); body.className = 'body';
+      var q = document.createElement('textarea'); q.rows = 1; q.value = j.q; q.setAttribute('aria-label', '第' + (i + 1) + '題');
+      q.oninput = function () { j.q = q.value; autosize(q); onEdit(); };
+      var vs = document.createElement('div'); vs.className = 'vs';
+      [['是', '是'], ['不是', '不是'], ['再問', '再問一句']].forEach(function (p) {
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'v'; b.dataset.v = p[0]; b.textContent = p[1];
+        b.setAttribute('aria-pressed', j.v === p[0]);
+        b.onclick = function () { j.v = j.v === p[0] ? '' : p[0]; vs.querySelectorAll('.v').forEach(function (x) { x.setAttribute('aria-pressed', x.dataset.v === j.v); }); onEdit(); };
+        vs.appendChild(b);
+      });
+      var r = document.createElement('input'); r.type = 'text'; r.value = j.r || ''; r.placeholder = '理由（「是」可留空）'; r.setAttribute('aria-label', '第' + (i + 1) + '題理由');
+      r.oninput = function () { j.r = r.value; onEdit(); };
+      body.append(q, vs, r); row.append(n, body); box.appendChild(row);
+      requestAnimationFrame(function () { autosize(q); });
+    });
+  }
+
+  function renderPlan() {
+    var has = !!st.plan;
+    $('sheet').hidden = !has; $('empty').hidden = has;
+    if (!has) return;
+    var h = HABITS[st.habit], b = BANDS[st.band];
+    $('kicker').textContent = '習慣' + NUM[st.habit] + '・' + h.name + '　' + b.n + '（' + b.g + '）';
+    $('ptitle').textContent = st.plan.title || '（未命名教案）';
+    FIELDS.forEach(function (k) { var t = $(k); t.value = st.plan[k] || ''; });
+    renderJudges();
+    requestAnimationFrame(function () { FIELDS.forEach(function (k) { autosize($(k)); }); });
+    updateChecks();
+  }
+
+  function checks(d) {
+    var js = d.judgments || [];
+    var filled = js.length === 3 && js.every(function (j) { return (j.q || '').trim() && j.v; });
+    var notYes = js.filter(function (j) { return j.v && j.v !== '是'; }).length;
+    var ifOk = /(當|下次|如果).{2,}(我會|我要)/.test((d.ifthen || '').replace(/\s/g, ''));
+    var evOk = (d.event || '').trim().length >= 30 && (d.failure || '').trim().length >= 4;
+    var T = function (k) { return (d[k] || '').trim(); };
+    return [
+      { ok: !!T('def'), label: '定義' },
+      { ok: filled && notYes >= 2, label: '判斷題至少兩題是錯誤範例' },
+      { ok: !!T('hear'), label: '該聽見' },
+      { ok: evOk, label: '教師事件含失敗' },
+      { ok: !!T('ask') && !!T('out'), label: '提問與學生產出' },
+      { ok: ifOk, label: 'if-then 格式' },
+      { ok: !!T('when') && !!T('revisit') && !!T('tool'), label: '工具與回顧時間點' }
+    ];
+  }
+  function updateChecks() {
+    var c = checks(st.plan), n = c.filter(function (x) { return x.ok; }).length;
+    var box = $('checks'); box.innerHTML = '';
+    var h = document.createElement('span'); h.className = 'n'; h.textContent = n + ' / ' + c.length + ' 項通過'; box.appendChild(h);
+    c.forEach(function (x) {
+      var s = document.createElement('span'); s.className = 'ck ' + (x.ok ? 'ok' : 'bad');
+      var i = document.createElement('i'); i.textContent = x.ok ? '✓' : '✗';
+      s.append(i, x.label); box.appendChild(s);
+    });
+    $('fix').hidden = !(sample && n < c.length);
+  }
+  function onEdit() { persist(); updateChecks(); }
+
+  FIELDS.forEach(function (k) {
+    $(k).addEventListener('input', function () { if (!st.plan) return; st.plan[k] = $(k).value; autosize($(k)); onEdit(); });
+  });
+
+  function normalize(o) {
+    var S = function (x) { return String(x == null ? '' : x).trim(); };
+    var p = { title: S(o.title) };
+    FIELDS.forEach(function (k) { p[k] = S(o[k]); });
+    var js = Array.isArray(o.judgments) ? o.judgments : [];
+    p.judgments = [0, 1, 2].map(function (i) {
+      var j = js[i] || {}, v = S(j.v);
+      if (v === '再問一句' || v === '需要再問一句') v = '再問';
+      return { q: S(j.q), v: (v === '是' || v === '不是' || v === '再問') ? v : '', r: S(j.r) };
+    });
+    return p;
+  }
+
+  var SHAPE = '{"title":"教案名稱，8-14 字，像一個課堂主題","scene":"這堂課的情境，一句話","def":"一句話定義，格式：習慣名是「…」。","judgments":[{"q":"學生會遇到的情況","v":"是|不是|再問","r":"理由，v 是「是」時可留空"},{同左},{同左}],"hear":"一句學生該聽見的話","event":"教師事件，第一人稱，100 字內，含老師自己的失敗，不美化，用「」包起來","failure":"event 中描述失敗的那一句，原文照抄","ask":"一個開放提問，用「」包起來","out":"學生要分享的自己的事件，要說得出什麼","tool":"工具名稱","toolDesc":"每一格寫什麼、學生怎麼填，兩句內","ifthen":"if-then 句，格式「當＿＿，我會＿＿。」，要具體","when":"回顧時間點，如一週後","revisit":"回顧時只問的一句話，不評分"}';
+
+  function buildPrompt() {
+    var h = HABITS[st.habit], b = BANDS[st.band];
+    var ref = h.ex[st.band] || h.ex[0] || {};
+    var scene = st.topic.trim()
+      ? '教學情境（老師指定）：' + st.topic.trim()
+      : '老師沒有指定情境。請你自己發想一個貼近學生、具體、少見但真實的情境（這次的靈感方向：' + st.nudge + '，可以不採用）。';
+    var sampleJson = JSON.stringify({ def: ref.def, judgments: ref.judgments, hear: ref.hear, event: ref.event, ask: ref.ask, out: ref.out, tool: ref.tool, ifthen: ref.ifthen, revisit: ref.revisit });
+    return [
+      '你是品格教育與社會情緒學習的課程設計者，要為台灣的老師設計一份「定義、連結、應用」三步驟的完整教案。',
+      '習慣' + NUM[st.habit] + '「' + h.name + '」。年段：' + b.n + '（' + b.g + '）；錯誤範例要落在「' + b.lv + '」：' + b.tip,
+      scene,
+      '創意要求：先在心裡想三個不同的情境角度，選最具體、最不老套的那一個；不要沿用參考範例的情境或句子。',
+      '硬性規則：',
+      '1. 繁體中文、台灣用語，語氣平實，不用口號和串場詞。',
+      '2. 判斷題三題中至少兩題的 v 不是「是」，且錯誤範例看起來像對的（動作快、很努力、很有禮貌），學生要想一下才分得出來。',
+      '3. 教師事件是老師自己的真實感失敗，要寫出失敗發生的那一句，不要把結尾寫成成功收場。',
+      '4. if-then 要具體到學生明天就能用，不要寫成空泛的勉勵。',
+      '5. 不新增與情境無關的事實或數據。',
+      '參考範例（只學結構與語氣）：' + sampleJson,
+      '只輸出一個 JSON 物件，不要任何其他文字。欄位如下：' + SHAPE
+    ].join('\n');
+  }
+
+  function busy(on, msg) {
+    $('gen').disabled = on; $('regen').disabled = on; $('fix').disabled = on;
+    $('stop').hidden = !on;
+    setStatus(msg || '');
+    setStatus('', false, 'foot-status');
+  }
+  function errCopy(e) {
+    var c = e && e.code;
+    if (c === 'cancelled') return '已停止。';
+    if (c === 'not_granted') return '你尚未允許這個頁面使用 Claude，所以無法生成。';
+    if (c === 'rate_limited') return '呼叫太頻繁或已達使用上限，請稍後再按一次。';
+    if (c === 'session_expired') return '登入已過期，請重新整理頁面並登入。';
+    if (c === 'invalid_json') return 'AI 回傳的格式不完整，請再按一次生成。';
+    return '生成失敗，請再按一次。';
+  }
+
+  async function run(prompt, label) {
+    if (!sample) { setStatus('這個環境沒有 AI，請在 Claude 裡開啟這個頁面。', true); return null; }
+    ctl = new AbortController();
+    busy(true, 'Thinking…');
+    var t0 = Date.now();
+    try {
+      var data = await sample.json(prompt, {
+        signal: ctl.signal, cache: false,
+        onText: function (u) { setStatus(label + '　已寫 ' + u.text.length + ' 字　' + Math.round((Date.now() - t0) / 1000) + ' 秒'); }
+      });
+      return data;
+    } catch (e) {
+      setStatus(errCopy(e), e && e.code !== 'cancelled');
+      return null;
+    } finally { busy(false, $('status').textContent); }
+  }
+
+  async function generate() {
+    st.topic = $('topic').value;
+    st.nudge = NUDGES[Math.floor(Math.random() * NUDGES.length)];
+    persist();
+    var o = await run(buildPrompt(), '設計中');
+    if (!o || typeof o !== 'object') return;
+    st.plan = normalize(o); persist(); renderPlan();
+    setStatus('完成。內容都可以直接修改。');
+    $('sheet').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  async function fixIt() {
+    var bad = checks(st.plan).filter(function (x) { return !x.ok; }).map(function (x) { return x.label; });
+    var p = '以下是一份教案草稿（JSON）。請只修正未通過的項目：' + bad.join('、') + '。其他欄位維持原意，不要改寫成全新的情境。\n'
+      + '規則：判斷題至少兩題 v 不是「是」；教師事件要有老師自己的失敗，至少 30 字，failure 是 event 中原文的一句；if-then 格式「當＿＿，我會＿＿。」；回顧時間點與工具要填。\n'
+      + '草稿：' + JSON.stringify(st.plan) + '\n只輸出修正後的完整 JSON 物件，欄位如下：' + SHAPE;
+    var o = await run(p, '修正中');
+    if (!o || typeof o !== 'object') return;
+    st.plan = normalize(o); persist(); renderPlan();
+    setStatus('已修正。');
+  }
+
+  function toText() {
+    var p = st.plan, h = HABITS[st.habit], b = BANDS[st.band];
+    var VL = { '是': '是', '不是': '不是', '再問': '再問一句' };
+    var L = [];
+    L.push('# ' + (p.title || '教案'));
+    L.push('習慣' + NUM[st.habit] + '・' + h.name + '　' + b.n + '（' + b.g + '）');
+    if (p.scene) L.push('情境：' + p.scene);
+    L.push('', '## 1 定義', p.def, '', '判斷題');
+    p.judgments.forEach(function (j, i) { L.push((i + 1) + '. ' + j.q + ' → ' + (VL[j.v] || '') + (j.r ? '（' + j.r + '）' : '')); });
+    L.push('', '該聽見：' + p.hear);
+    L.push('', '## 2 連結', '教師事件：' + p.event, '失敗的那一句：' + p.failure, '開放提問：' + p.ask, '學生產出：' + p.out);
+    L.push('', '## 3 應用', '工具：' + p.tool, '怎麼用：' + p.toolDesc, 'if-then：' + p.ifthen, '回顧時間點：' + p.when, '回顧時只問：' + p.revisit);
+    return L.join('\n');
+  }
+
+  $('gen').onclick = generate;
+  $('regen').onclick = generate;
+  $('fix').onclick = fixIt;
+  $('stop').onclick = function () { if (ctl) ctl.abort(); };
+  $('copy').onclick = async function () {
+    var txt = toText();
+    try { await navigator.clipboard.writeText(txt); setStatus('已複製。', false, 'foot-status'); }
+    catch (e) {
+      var t = document.createElement('textarea'); t.value = txt; t.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(t); t.select();
+      var ok = false; try { ok = document.execCommand('copy'); } catch (x) {}
+      t.remove(); setStatus(ok ? '已複製。' : '無法自動複製，請改用下載。', !ok, 'foot-status');
+    }
+  };
+  $('save').onclick = async function () {
+    try {
+      var dl = await claude.use('downloads');
+      if (!dl) { setStatus('這個環境無法下載，請用「複製全文」。', true, 'foot-status'); return; }
+      await dl.save({ filename: '教案-習慣' + NUM[st.habit] + '-' + HABITS[st.habit].name + '.md', data: toText() });
+      setStatus('已送出下載。', false, 'foot-status');
+    } catch (e) { if (!e || e.code !== 'declined') setStatus('下載失敗，請用「複製全文」。', true, 'foot-status'); }
+  };
+
+  load();
+  $('topic').value = st.topic || '';
+  renderControls();
+  renderPlan();
+
+  (async function () {
+    try { sample = (window.claude && window.claude.use) ? await window.claude.use('sample') : null; } catch (e) { sample = null; }
+    if (!sample) { $('gen').disabled = true; $('regen').disabled = true; setStatus('這個環境沒有 AI，請在 Claude 裡開啟這個頁面。', true); }
+    try { var d = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null; $('save').hidden = !d; } catch (e) {}
+    if (st.plan) updateChecks();
+  })();
+})();
+</script>

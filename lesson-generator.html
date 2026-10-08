@@ -1,0 +1,416 @@
+<title>七個習慣教案生成器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;800&display=swap" rel="stylesheet">
+<style>
+/* 版面：上方三個選擇＋一個按鈕，下方是一張可直接編修的教案單，檢查條固定在頂端 */
+:root {
+  --bg: #F3F6F6;
+  --surface: #FFFFFF;
+  --ink: #17262B;
+  --muted: #5B6B70;
+  --line: #D3DCDD;
+  --accent: #0F5F5A;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #DCEEEC;
+  --fail: #B3402A;
+  --fail-soft: #F8E6E1;
+  --ok: #3F7A3A;
+  --ask: #2C5C85;
+  --font-display: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
+  --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1A1D; --surface: #162428; --ink: #E6EEEF; --muted: #9DB0B4; --line: #2A3D42;
+    --accent: #5FC4BB; --accent-ink: #0B1C1E; --accent-soft: #1C3A3B;
+    --fail: #F08C74; --fail-soft: #3A2420; --ok: #8CC784; --ask: #7FB4E0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1A1D; --surface: #162428; --ink: #E6EEEF; --muted: #9DB0B4; --line: #2A3D42;
+  --accent: #5FC4BB; --accent-ink: #0B1C1E; --accent-soft: #1C3A3B;
+  --fail: #F08C74; --fail-soft: #3A2420; --ok: #8CC784; --ask: #7FB4E0;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 400 15px/1.7 var(--font-body); margin: 0; padding-inline: 16px; padding-block: 24px 64px; }
+.wrap { max-width: 880px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1 { font: 800 clamp(26px, 5vw, 36px)/1.25 var(--font-display); margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 6px 0 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 18px; }
+.lbl { font-size: 12px; letter-spacing: .08em; color: var(--muted); font-weight: 700; margin-bottom: 8px; display: block; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: inherit; border: 1px solid var(--line); background: transparent; color: var(--ink); padding: 7px 14px; border-radius: 999px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.bands { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.band { text-align: left; font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.band b { font-weight: 700; }
+.band span { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.band[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+input[type=text], textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; }
+textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { font: inherit; font-weight: 700; border-radius: 8px; padding: 10px 20px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); }
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn.small { padding: 6px 12px; font-size: 13px; font-weight: 500; }
+.btn:disabled { opacity: .5; cursor: default; }
+.status { color: var(--muted); font-size: 14px; min-width: 0; }
+.status.err { color: var(--fail); }
+.nudge { color: var(--muted); font-size: 13px; }
+
+.sheet { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.sheet[hidden] { display: none; }
+.sheet-head { padding: 22px 20px 16px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid var(--line); }
+.kicker { color: var(--accent); font-weight: 700; font-size: 13px; letter-spacing: .06em; }
+.sheet-head h2 { font: 800 clamp(22px, 4vw, 28px)/1.3 var(--font-display); margin: 0; text-wrap: balance; }
+.checks { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2; background: var(--surface); border-bottom: 1px solid var(--line); padding: 10px 20px; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.checks .n { font-weight: 700; font-variant-numeric: tabular-nums; }
+.ck { font-size: 13px; color: var(--muted); display: inline-flex; gap: 5px; align-items: baseline; }
+.ck i { font-style: normal; font-weight: 700; }
+.ck.ok { color: var(--ok); }
+.ck.bad { color: var(--fail); }
+.step { padding: 22px 20px; display: flex; flex-direction: column; gap: 14px; border-bottom: 1px solid var(--line); }
+.step:last-of-type { border-bottom: 0; }
+.step-h { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.step-h .no { font: 800 22px/1 var(--font-display); color: var(--accent); }
+.step-h h3 { font: 700 18px/1.3 var(--font-display); margin: 0; }
+.step-h p { margin: 0; color: var(--muted); font-size: 13px; flex-basis: 100%; }
+.f { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.f > label, .f > .lbl { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .06em; margin: 0; }
+.big textarea { font: 600 17px/1.7 var(--font-display); }
+.judge { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 4px 10px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+.judge .jn { font-weight: 700; color: var(--muted); padding-top: 8px; font-variant-numeric: tabular-nums; }
+.judge .body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.vs { display: flex; gap: 6px; flex-wrap: wrap; }
+.v { font: inherit; font-size: 13px; padding: 3px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
+.v[aria-pressed="true"][data-v="是"] { background: var(--ok); color: var(--bg); border-color: var(--ok); }
+.v[aria-pressed="true"][data-v="不是"] { background: var(--fail); color: var(--bg); border-color: var(--fail); }
+.v[aria-pressed="true"][data-v="再問"] { background: var(--ask); color: var(--bg); border-color: var(--ask); }
+.fail-note { background: var(--fail-soft); border-radius: 6px; padding: 8px 10px; font-size: 13px; color: var(--ink); }
+.fail-note b { color: var(--fail); }
+.foot { padding: 16px 20px 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-top: 1px solid var(--line); }
+.empty { color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 28px 20px; text-align: center; }
+@media (prefers-reduced-motion: no-preference) { .btn, .chip, .band, .v { transition: background .15s, border-color .15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>七個習慣教案生成器</h1>
+    <p class="sub">選習慣與年段，AI 發想一份完整的「定義、連結、應用」教案。情境可留空。</p>
+  </header>
+
+  <section class="panel" aria-label="設定">
+    <div><span class="lbl">習慣</span><div class="chips" id="habits"></div></div>
+    <div><span class="lbl">年段（決定錯誤範例的層次）</span><div class="bands" id="bands"></div></div>
+    <div class="f"><label for="topic">教學情境（選填）</label><input type="text" id="topic" maxlength="120" placeholder="留空，讓 AI 自己想一個具體、少見但真實的情境"></div>
+    <div class="row">
+      <button class="btn" id="gen" type="button">生成教案</button>
+      <button class="btn ghost" id="stop" type="button" hidden>停止</button>
+      <span class="status" id="status" role="status"></span>
+    </div>
+  </section>
+
+  <div class="empty" id="empty">選好習慣與年段，按「生成教案」。每次生成都會換一個情境。</div>
+
+  <article class="sheet" id="sheet" hidden>
+    <div class="sheet-head">
+      <span class="kicker" id="kicker"></span>
+      <h2 id="ptitle"></h2>
+      <div class="f"><label for="scene">情境（一句話）</label><textarea id="scene" rows="1"></textarea></div>
+    </div>
+    <div class="checks" id="checks"></div>
+
+    <section class="step">
+      <div class="step-h"><span class="no">1</span><h3>定義</h3><p>一個定義、三個判斷題、一句學生該聽見的話。</p></div>
+      <div class="f big"><label for="def">定義</label><textarea id="def" rows="2"></textarea></div>
+      <div class="f"><span class="lbl">三個判斷題（至少兩題不是「是」）</span><div id="judges" style="display:flex;flex-direction:column;gap:10px"></div></div>
+      <div class="f"><label for="hear">該聽見</label><textarea id="hear" rows="1"></textarea></div>
+    </section>
+
+    <section class="step">
+      <div class="step-h"><span class="no">2</span><h3>連結</h3><p>老師先說自己的失敗，再問，再等。</p></div>
+      <div class="f"><label for="event">教師事件（含失敗）</label><textarea id="event" rows="3"></textarea></div>
+      <div class="f"><label for="failure">失敗發生的那一句</label><textarea id="failure" rows="1"></textarea></div>
+      <div class="f"><label for="ask">開放提問</label><textarea id="ask" rows="2"></textarea></div>
+      <div class="f"><label for="out">學生產出</label><textarea id="out" rows="2"></textarea></div>
+    </section>
+
+    <section class="step">
+      <div class="step-h"><span class="no">3</span><h3>應用</h3><p>一個工具、一句 if-then、一個回顧時間點。</p></div>
+      <div class="f"><label for="tool">工具</label><textarea id="tool" rows="1"></textarea></div>
+      <div class="f"><label for="toolDesc">工具怎麼用</label><textarea id="toolDesc" rows="2"></textarea></div>
+      <div class="f"><label for="ifthen">if-then 句型</label><textarea id="ifthen" rows="2"></textarea></div>
+      <div class="f"><label for="when">回顧時間點</label><textarea id="when" rows="1"></textarea></div>
+      <div class="f"><label for="revisit">回顧時只問</label><textarea id="revisit" rows="2"></textarea></div>
+    </section>
+
+    <div class="foot">
+      <button class="btn" id="regen" type="button">換一個情境重生成</button>
+      <button class="btn ghost" id="fix" type="button" hidden>請 AI 修正未通過項目</button>
+      <button class="btn ghost" id="copy" type="button">複製全文</button>
+      <button class="btn ghost" id="save" type="button" hidden>下載 .md</button>
+      <span class="status" id="foot-status" role="status"></span>
+    </div>
+  </article>
+</div>
+
+<script type="application/json" id="habits-data">[{"no": 1, "name": "主動積極", "ex": [{"title": "下課的推擠與告狀", "grade": "國小中年級", "def": "主動積極是「在別人做了什麼、和我做出反應之間，有一個我可以自己選擇的空間」。", "judgments": [{"q": "老師還沒說完，他就衝去搬椅子", "v": "不是", "r": "動作快，但沒有選擇的成分"}, {"q": "被踩到腳，先看是不是故意的，才決定要不要生氣", "v": "是", "r": ""}, {"q": "看到有人被欺負，主動跑去跟其他人講這件事", "v": "不是", "r": "主動，但不是積極回應"}], "hear": "「他不是選的，他是直接反應。」 所以不是主動積極", "event": "「上禮拜有人在走廊撞到我，我的資料掉了一地。我當下直接說『你會不會走路啊！』——講完我就後悔了，因為他其實是被後面的人推的。我沒有用到那個空間。」", "ask": "「你有沒有哪一次，事情發生跟你反應中間，完全沒有空間？」然後等。", "out": "一則自己的事件，要說得出時間、地點、對方做了什麼、我當下做了什麼。", "tool": "停步思考圖", "ifthen": "「下次＿＿（那個常常讓我炸掉的人事物）出現，我會先＿＿（數三下／離開兩步／先問一句）。」", "revisit": "一週後只問一句「有人用到那個空間嗎」，不評分。"}, {"title": "群組截圖與被傳話", "grade": "國中", "def": "主動積極是「我為我的回應負責，而不是把責任交給刺激我的那個人」。", "judgments": [{"q": "他先傳我壞話的，我當然回嗆", "v": "不是", "r": "回應的決定權交出去了"}, {"q": "看到截圖很生氣，先把手機放下，隔天再處理", "v": "是", "r": ""}, {"q": "主動在群組裡幫朋友出頭", "v": "需要再問一句", "r": "是選的，還是被氣氛推的"}], "hear": "「差別在於我是不是自己決定的。」", "event": "「我曾經看到別人轉述我講過的話，被改得完全不是我的意思。我當晚打了很長一段訊息，打完沒送出去，隔天早上看，慶幸我沒送。但我那晚根本也沒睡好——所以這個暫停不是代表我不會痛，而是提醒自己，痛的時候還能不做決定。」", "ask": "「你打過但沒送出去的訊息，那個沒送出去的決定，是什麼幫你擋下來的？」", "out": "一則自己的事件 + 指出當時的刺激與回應分別是什麼。", "tool": "控制圈／關注圈", "ifthen": "「當我看到讓我馬上想回的訊息，我會先把它分到圈內或圈外，再決定要不要動。」", "revisit": "兩週後拿一則匿名的真實班級事件，全班一起區分內外圈。"}, {"title": "分組報告有人不做事", "grade": "高年級／國中", "def": "主動積極是「把力氣花在我能改變的事上，而不是花在抱怨我不能改變的事上」。", "judgments": [{"q": "一直提醒組員做，提醒了五次", "v": "不是", "r": "重複同一個無效動作，不是主動積極，是慣性"}, {"q": "認定他不會做了，自己默默全部扛完", "v": "不是", "r": "不是選擇，是放棄溝通"}, {"q": "直接找他確認：你能做到哪一段、什麼時候給我", "v": "是", "r": ""}], "hear": "「重點不是有沒有做事，是有沒有換方法。」", "event": "「我以前遇到不配合的合作對象，我的做法是自己做完，然後很生氣。生氣了三年才發現，我從來沒有跟對方講清楚我需要什麼。我一直把力量用在不對的地方。」", "ask": "「你有沒有哪件事，是你抱怨了很多次、但從來沒有真的開口處理過的？」", "out": "一則自己的事件 + 指出當時我實際做的與我其實可以做的各是什麼。", "tool": "控制圈 + 我訊息句型（銜接習慣五）", "ifthen": "「當我發現我在抱怨同一件事第三次，我會停下來問：這件事在圈內還是圈外？如果在圈內，我下一句話要說什麼。」", "revisit": "期末分組結束後，回頭看這張圈，哪些當初以為在圈外的其實在圈內。"}]}, {"no": 2, "name": "以終為始", "ex": [{"title": "這學期我想被怎麼形容", "grade": "國小中年級", "def": "以終為始是「開始做之前，先在腦袋裡看見做完的樣子」。", "judgments": [{"q": "每天照聯絡簿把功課寫完", "v": "不是", "r": "有照做，但沒有自己的終點"}, {"q": "開始畫海報前，先想好畫完要長什麼樣，再決定先畫哪裡", "v": "是", "r": ""}, {"q": "媽媽說這學期要考進前十名，我就開始讀", "v": "這題要停下來討論", "r": "那是誰的終點？"}], "hear": "「終點要是我自己看見的，不然只是照做。」", "event": "「我以前花了整個暑假把教室佈置得很漂亮，開學那天我超期待。結果一個學期下來，沒有人動過那面牆，因為那是我的教室，不是他們的。我從頭到尾沒想清楚我要的到底是漂亮的教室，還是他們覺得這裡是自己的地方。」", "ask": "「你有沒有做過一件很認真、做完卻覺得好像沒什麼意義的事？」然後等。", "out": "一則自己的事件，說得出我做了什麼、做完之後為什麼覺得空空的。", "tool": "終點描述法（一句話，不寫分數，只寫別人會怎麼形容我）", "ifthen": "「當我要開始一件要做很多天的事，我會先講出一句『做完的時候會怎樣』。」", "revisit": "期中一次、期末一次，把當初那句話拿出來對照，只問「有靠近嗎」，不打分。"}, {"title": "段考不是終點，是里程碑", "grade": "國中", "def": "以終為始是「先確定我要去哪裡，再決定路怎麼走；而不是先走了再說要去哪」。", "judgments": [{"q": "排了一張很完整的讀書計畫表，每天幾點讀什麼都寫好", "v": "不一定", "r": "要問：這張表是從哪個終點推回來的？"}, {"q": "這次目標是數學進步十分，所以我把時間重新分配，減少已經很穩的科目", "v": "是", "r": ""}, {"q": "大家都在讀，我也讀，讀到哪算哪", "v": "不是", "r": ""}], "hear": "「有計畫不等於以終為始，要看那張表是不是從終點倒推出來的。」", "event": "「我大學修過一門很硬的課，我從第一週就開始念，念得比誰都早。期末考完我拿到很低的分數，因為我從頭到尾在念我看得懂的那幾章，而考的是我一直跳過的那部分。我很努力，但我從來沒問過『考完的時候我應該會什麼』。」", "ask": "「你有沒有一次很努力、但努力錯地方的經驗？當時如果先問一個問題，可以省下多少時間？」", "out": "一則自己的事件 + 指出當時我的終點是什麼（通常會發現：沒有，或者是別人的）。", "tool": "兩次創造圖", "ifthen": "「當我準備開始讀一個科目，我會先問：考完我應該會什麼？答不出來就先去問清楚，不要先讀。」", "revisit": "段考後一週，回頭看心智創造那欄，區分「沒做到」和「終點本來就設錯」。"}, {"title": "分組報告先畫成品", "grade": "國中／高年級", "def": "以終為始是「所有東西都被創造兩次，先在腦中，再在實際世界」。", "judgments": [{"q": "分完組馬上開始分工，每個人回去找資料", "v": "不是", "r": "先動了才想要做什麼"}, {"q": "先討論出「我們希望台下聽完記得哪一件事」，再回頭決定要哪些資料", "v": "是", "r": ""}, {"q": "把去年學長姐的報告架構抄下來照著做", "v": "再問", "r": "那是他們的終點，還是我們的？"}], "hear": "「第一次創造沒做，第二次創造就會一直重做。」", "event": "「我辦過一場活動，場地先訂了，因為怕被搶走。後來才發現那個場地沒辦法分組、沒辦法移動桌椅，而我整個活動的核心就是分組討論。我為了配合已經訂好的場地，把活動改得面目全非。我是先做了，才想我要什麼。」", "ask": "「你們有沒有做過一份報告，做到一半整個打掉重來？那次是缺了什麼？」", "out": "一則自己的事件 + 指出當初如果先確定什麼，就不用重來。", "tool": "成品草圖", "ifthen": "「當我們要開始分工，我會先問一次：我們的成品長什麼樣？沒有共識就先不要分工。」", "revisit": "報告結束後，把當初的草圖跟實際成品並排，討論差在哪、為什麼。"}]}, {"no": 3, "name": "要事第一", "ex": [{"title": "回家先做哪一件", "grade": "國小中年級", "def": "要事第一是「先做最重要的那一件，不是先做最想做、或最快做完的那一件」。", "judgments": [{"q": "回家先把最簡單的三張學習單寫完，難的那份留到最後", "v": "不是", "r": "先做快的，不是先做重要的"}, {"q": "先花二十分鐘練明天要考的直笛，再去看電視", "v": "是", "r": ""}, {"q": "一整個晚上都在忙，忙到很累", "v": "不是", "r": "忙不等於把重要的做完"}], "hear": "「忙不是重點，順序才是。」", "event": "「有一次我要準備一份很重要的教學計畫，結果那天我把桌子整理得超乾淨，回了三十封信，還把書櫃重新排好。晚上十一點，計畫一個字都沒寫。我不是在偷懶，我一整天都在做事，只是都不是那一件。」", "ask": "「你有沒有哪一天很忙、可是最重要的那件事沒做完？」然後等。", "out": "一則自己的事件，說得出那天做了什麼、沒做完的是哪一件。", "tool": "大石頭先放", "ifthen": "「當我回到家坐下來，我會先講出今天的大石頭是哪一件，做完才碰想做的那些。」", "revisit": "一週後只問順序：「你的大石頭是第幾件做的？」不看有沒有全部做完。"}, {"title": "手機與段考週", "grade": "國中", "def": "要事第一是「重要的事排在緊急的事前面，而不是被急的事一路推著走」。", "judgments": [{"q": "訊息一來就回，回完再讀書，因為朋友在等", "v": "不是", "r": "急的事插隊，重要的事被切碎"}, {"q": "把手機放在別的房間，先讀完一個段落再拿回來", "v": "是", "r": ""}, {"q": "考前一天熬夜把全部讀完", "v": "再問", "r": "那是要事第一，還是拖到變緊急？"}], "hear": "「緊急的事會自己叫你，重要的事不會。」", "event": "「我有一份要交的東西，期限是兩個月後。我每天都覺得『還有時間』，然後每天都有更急的事。最後一個晚上我熬夜做完，品質很差。它從來不是不重要，只是它一直不緊急，直到它變得很緊急。」", "ask": "「你有沒有一件事，是拖到變緊急才做的？如果早兩週動，那天晚上你在做什麼？」", "out": "一則自己的事件 + 指出當時哪些事插了隊。", "tool": "時間四象限", "ifthen": "「當我拿起手機而該讀的還沒讀，我會先把手機放到看不到的地方，做完一個段落再拿。」", "revisit": "段考後一週，回頭看四格，哪些第二格的事最後變成了第一格。"}, {"title": "社團、比賽、作業撞期", "grade": "國中／高年級", "def": "要事第一是「對重要的事說好，就必須對某些事說不」。", "judgments": [{"q": "全部都答應，然後每一件都做一半", "v": "不是", "r": "沒有選擇，只是不敢拒絕"}, {"q": "跟社團說這兩週我只能到一次，因為比賽在下週", "v": "是", "r": ""}, {"q": "直接不出現，也不跟任何人講", "v": "不是", "r": "那不是說不，是消失"}], "hear": "「說不要說出口，而且要說得清楚。」", "event": "「有一個學期我答應了四件事，因為每一件我都不好意思拒絕。結果那學期我每一件都遲交、每一件都道歉。我以為答應是負責，後來才知道，什麼都答應才是最不負責的那一種。」", "ask": "「你有沒有答應過一件事，答應完就後悔？那時候你其實可以說什麼？」", "out": "一則自己的事件 + 指出當時答應了幾件、實際做得完幾件。", "tool": "承諾清單（這兩週我答應了什麼）", "ifthen": "「當有人再找我加一件事，我會先看清單，再回一句『這兩週我只能做到＿＿』。」", "revisit": "期末回頭看清單，哪一次說不讓後面的事變好做了。"}]}, {"no": 4, "name": "雙贏思維", "ex": [{"title": "只有一顆球", "grade": "國小中年級", "def": "雙贏思維是「我想要的事情，不需要用你的難過來換」。", "judgments": [{"q": "球我先拿到，所以整節下課都是我的", "v": "不是", "r": "我贏你輸"}, {"q": "算了，讓他玩，我坐在旁邊看", "v": "不是", "r": "我輸你贏，不是雙贏"}, {"q": "問他要不要一起玩，兩個人傳球", "v": "是", "r": ""}], "hear": "「讓給你不是雙贏，那只是換人不開心。」", "event": "「有兩個學生搶同一個位置，我當下用最快的方法解決：我說『你坐這裡，你坐那裡』。事情五秒就結束了，可是那兩個人整個下午都不講話。我贏了，因為我是老師；他們兩個都輸了。」", "ask": "「你有沒有一次吵完之後，雖然贏了，但心裡不太舒服？」然後等。", "out": "一則自己的事件，說得出當時誰贏了、誰輸了。", "tool": "情緒帳戶", "ifthen": "「當我很想要一個東西而別人也想要，我會先問一句『我們可以怎麼一起用』，再決定。」", "revisit": "一週後只問存款：「這週你幫誰的帳戶存了錢？」不點名誰在提款。"}, {"title": "分組時誰做哪一段", "grade": "國中", "def": "雙贏思維是「我把我要的講清楚，也去問清楚你要的，然後找對兩邊都成立的做法」。", "judgments": [{"q": "兩個人都不想做結論，最後抽籤決定", "v": "不是", "r": "誰都沒問對方為什麼不想做"}, {"q": "各讓一半：我做一半你做一半，誰都不太願意", "v": "再問", "r": "這是妥協還是雙贏？"}, {"q": "問完才知道他怕上台、我怕做簡報，於是換過來", "v": "是", "r": ""}], "hear": "「沒問過對方要什麼，就不可能找到雙贏。」", "event": "「我跟同事分工，我很怕被說偷懶，所以我提議每個人做一半。結果我做的那一半是我最不擅長的，她做的那一半她也不想碰。兩個人都很累，成果也不好。我以為公平就是平均，從來沒問她想做哪一段。」", "ask": "「你有沒有一次分工分得很平均、可是大家都不太滿意？那時候少問了什麼？」", "out": "一則自己的事件 + 指出我要的與對方要的分別是什麼。", "tool": "四種結果", "ifthen": "「當我們要分工，我會先問一輪『你想做哪一段、為什麼』，才開始分。」", "revisit": "報告結束後回頭標一次，這次落在哪一格。"}, {"title": "班服顏色投票之後", "grade": "國中／高年級", "def": "雙贏思維是「不接受只有兩個選項；先找第三種，找不到才回頭談條件」。", "judgments": [{"q": "投票，多數決，二十比十五，結束", "v": "不是", "r": "十五個人還在這個班上"}, {"q": "為了不吵架，改成兩邊都不喜歡的第三個顏色", "v": "不是", "r": "那是雙輸，不是第三種"}, {"q": "問清楚兩邊在意的是顏色還是圖案，最後用甲的顏色配乙的圖案", "v": "是", "r": ""}], "hear": "「第三種不是各讓一半，是一起想出來的。」", "event": "「班上為了一件事分成兩派，我請大家投票，多數決通過，我覺得我處理得很民主。可是那之後，輸的那一邊有半個學期不太願意在班會發言。我用制度贏了，但我沒有處理他們在意的東西。」", "ask": "「你有沒有一次投票輸了、事情也照做了，但你心裡並沒有同意？」", "out": "一則自己的事件 + 指出當時沒有被問到的是什麼。", "tool": "第三種方案三問", "ifthen": "「當班上只剩兩個選項在對立，我會先問一次：有沒有第三種我們都還沒想到的做法？」", "revisit": "期末回頭看這次的決定，投票輸的那一邊後來還願不願意提意見。"}]}, {"no": 5, "name": "知彼解己", "ex": [{"title": "同學說話我打斷了", "grade": "國小中年級", "def": "知彼解己是「先聽懂對方說什麼，再說我要說的」。", "judgments": [{"q": "他講話的時候我一直點頭，心裡在想等一下要說什麼", "v": "不是", "r": "有安靜，但沒有在聽"}, {"q": "他還沒講完，我就知道他要說什麼，直接接話", "v": "不是", "r": "我以為我懂了"}, {"q": "他說完，我用自己的話再講一次，問他「是這個意思嗎」", "v": "是", "r": ""}], "hear": "「安靜不等於聽懂。」", "event": "「有一位家長來找我，才講了兩句，我就覺得我知道她要說什麼，馬上開始解釋。她看著我，說了一句『我還沒講完』。後來我才知道，她要說的跟我以為的完全不同。我不是沒有聽，是我聽了開頭，就替她把結尾說完了。」", "ask": "「你有沒有一次被別人打斷，或你打斷了別人？後來發現他要說的是什麼？」然後等。", "out": "一則自己的事件，說得出我以為對方要說什麼、實際上是什麼。", "tool": "複述三步", "ifthen": "「當有人跟我說話而我很想插嘴，我會先等他說完，再講一句『你是說……』。」", "revisit": "一週後只問一句：「你用『你是說』的時候，對方有說『對』嗎？」不評分。"}, {"title": "好友突然不理我", "grade": "國中", "def": "知彼解己是「用對方的眼睛看事情，聽他的話也聽他的感覺」。", "judgments": [{"q": "他一說完，我立刻說「沒事啦，不要想太多」", "v": "不是", "r": "急著安慰，把他的感覺蓋掉"}, {"q": "他一開口，我就開始想是不是我做錯了什麼", "v": "不是", "r": "注意力在我自己身上"}, {"q": "先說「聽起來你很不舒服」，再問發生了什麼事", "v": "是", "r": ""}], "hear": "「安慰得太快，等於沒有聽他說。」", "event": "「一位朋友跟我說她工作很累。我馬上給了她五個解決方法，講得很有條理。她聽完說了一句『謝謝』，然後就沒再提。後來我才明白，她那天要的不是方法，是有人聽她說完。我給了很多，可是沒有一句是在回應她。」", "ask": "「你有沒有一次跟人說心事，對方一直給建議，你反而更不想說了？」", "out": "一則自己的事件 + 指出當時我想要的回應是什麼。", "tool": "四種回應", "ifthen": "「當朋友跟我說他不開心，我會先說出我聽到的感覺，再決定要不要問或給建議。」", "revisit": "兩週後隨機抽一段日常對話，全班一起標它落在哪一格。"}, {"title": "和家長或老師意見不同", "grade": "國中／高年級", "def": "知彼解己是「先讓對方確認我聽懂了，才輪到我表達我的想法」。", "judgments": [{"q": "他講到一半，我已經想好反駁的話，等他停就開口", "v": "不是", "r": "聽是為了回嘴"}, {"q": "他說什麼我都說「好」，然後照自己的想法做", "v": "不是", "r": "沒有聽，也沒有講"}, {"q": "先說出我理解的他的擔心，他說對，我再說我的想法", "v": "是", "r": ""}], "hear": "「對方說『對』之前，還不輪到我。」", "event": "「我剛任教時，跟主任對一個規定意見不同。我準備了很完整的理由，一進辦公室就開始講。講完他只說『我知道了』，之後什麼都沒改。多年後我才想到，我從頭到尾沒問過他為什麼要這樣訂。我以為他不聽我，其實是我沒讓他覺得被聽見。」", "ask": "「你有沒有一次很努力說明自己的想法，可是對方完全沒被說服？當時你有問過他在意什麼嗎？」", "out": "一則自己的事件 + 指出當時我沒問、但可以問的一句話。", "tool": "先聽後說四步", "ifthen": "「當我想說服別人，我會先說出他在意的事，等他說『對』，再講我的想法。」", "revisit": "一個月後回頭看那次對話，對方的態度和第一次比起來有什麼不同。"}]}, {"no": 6, "name": "統合綜效", "ex": [{"title": "兩個人畫一張海報", "grade": "國小中年級", "def": "統合綜效是「兩個人合作的結果，比各自做完再拼起來更好」。", "judgments": [{"q": "他畫左邊，我畫右邊，最後貼在一起", "v": "不是", "r": "各做各的，只是一加一"}, {"q": "他說怎麼畫我就怎麼畫，我沒有意見", "v": "不是", "r": "只有一個人的想法"}, {"q": "他想畫太空，我想畫海洋，我們一起想出「海底太空站」", "v": "是", "r": ""}], "hear": "「綜效是做出誰一個人都想不到的東西。」", "event": "「我跟一位同事合開一門課。我把我的教案排得很完整，她提了一個不一樣的做法，我第一反應是：這會打亂我的進度。我沒接。那學期課上得很順，也很平。後來看她自己班的課，比我的多了一個我完全沒想到的環節。」", "ask": "「你有沒有一次跟別人一起做東西，做出來的比你自己想的還好？」然後等。", "out": "一則自己的事件，說得出哪一部分是對方想出來的。", "tool": "我的點子＋你的點子＝？", "ifthen": "「當我們的想法不一樣，我會先問：把我們兩個的合起來，可以變成什麼？」", "revisit": "一週後只問：「做出來的東西，有哪一部分是你一個人想不到的？」不評好壞。"}, {"title": "組員個性很不一樣", "grade": "國中", "def": "統合綜效是「把每個人不一樣的地方，當成材料，而不是麻煩」。", "judgments": [{"q": "大家想法都一樣，很快就做完了", "v": "再問", "r": "一樣是好事，還是沒有人提出不同的想法？"}, {"q": "他太慢、他太急，所以分開做最快", "v": "不是", "r": "把差異當成麻煩處理掉"}, {"q": "他想很多、我動作快，於是他負責規劃、我負責先做出草稿讓他改", "v": "是", "r": ""}], "hear": "「跟你一樣的人，只能幫你做更多你已經會的。」", "event": "「我以前選共事的夥伴，都選跟我想法像的人，因為溝通最省力。那幾年我們效率很高，可是有一次出了大問題，事後才發現我們全部漏掉同一件事，因為我們看事情的方式太像了。沒有人在會議裡說一句『可是如果……』。」", "ask": "「你有沒有一次因為某個跟你很不一樣的人，事情反而變得比較好？」", "out": "一則自己的事件 + 指出對方哪一點跟我不一樣、那一點幫上了什麼。", "tool": "長處與缺口對照", "ifthen": "「當我覺得某個組員很難搭配，我會先找他有、而我缺的那一項。」", "revisit": "報告結束後，回頭看配對：哪一組配對真的補上了缺口。"}, {"title": "班級活動意見兩極", "grade": "國中／高年級", "def": "統合綜效是「當意見對立，不是選一邊，也不是折衷，而是找到比兩邊都更好的做法」。", "judgments": [{"q": "一半的人想辦園遊會，一半想看電影，那就上午園遊會、下午電影", "v": "再問", "r": "是折衷，還是有新的東西？"}, {"q": "兩邊吵不出結果，老師決定", "v": "不是", "r": "把問題丟給更大的權力"}, {"q": "問出想辦園遊會是想有互動、想看電影是想放鬆，於是辦「電影攤位」", "v": "是", "r": ""}], "hear": "「折衷是一人一半，綜效是兩邊要的都拿到。」", "event": "「兩位同事對一個活動的做法意見相反，我夾在中間，提議各取一半。兩邊都同意了，也都不太開心。活動辦完，沒有人覺得那是自己的活動。我以為我在調解，其實我是在切蛋糕，我沒有問過他們各自到底想要保住什麼。」", "ask": "「你有沒有一次大家各退一步，結果每個人都覺得少了一點什麼？」", "out": "一則自己的事件 + 指出每一方各自少掉的是什麼。", "tool": "對立變合作四步", "ifthen": "「當意見分成兩邊，我會先問每一邊：你最想保住的是什麼？再一起想新的做法。」", "revisit": "活動結束後，兩邊各說一次：我最在意的那件事，有沒有被保住。"}]}, {"no": 7, "name": "不斷更新", "ex": [{"title": "睡不夠的一週", "grade": "國小中年級", "def": "不斷更新是「照顧自己的身體、心情、腦袋和人際，讓自己一直有力氣」。", "judgments": [{"q": "功課寫完就躺在沙發上滑平板到很晚", "v": "不是", "r": "有停下來，但沒有補到電"}, {"q": "今天很累，所以我今天什麼都不想做", "v": "再問", "r": "是需要休息，還是在逃避？"}, {"q": "今天有點累，所以我提早洗澡、十點上床", "v": "是", "r": ""}], "hear": "「停下來不等於補到電。」", "event": "「開學前兩週，我每天只睡五個小時，覺得我可以撐過去。第二週的星期三，我在班上對一個學生大聲說話，那不是我平常會有的語氣。下課後我很懊悔。我不是不會處理，是我已經沒有力氣處理了。」", "ask": "「你有沒有一次因為太累，對別人的態度變得不像平常的你？」然後等。", "out": "一則自己的事件，說得出當時累在哪裡、說了或做了什麼。", "tool": "四個電池", "ifthen": "「當我覺得很累或很煩，我會先看四個電池，找出最低的那一個，做一件小事把它補起來。」", "revisit": "一週後只問一句：「這週你補了哪一個電池？」不問補得好不好。"}, {"title": "讀了很久卻沒進步", "grade": "國中", "def": "不斷更新是「花時間把鋸子磨利，之後鋸得比較快」。", "judgments": [{"q": "連續讀了四個小時，中間沒有休息，第三個小時後其實都沒進去", "v": "不是", "r": "一直鋸，鋸子已經鈍了"}, {"q": "花二十分鐘整理錯題，發現自己老是錯同一種題型", "v": "是", "r": ""}, {"q": "看讀書方法的影片看了一個下午，沒有真的讀", "v": "再問", "r": "是在磨鋸子，還是在逃避鋸木頭？"}], "hear": "「鈍了的鋸子，越用力越慢。」", "event": "「我教書的頭幾年，用的是同一套教法，每年只是更努力地做。第五年我發現，學生的反應跟第一年沒有差別，可是我比第一年累很多。我一直在鋸，從來沒有停下來看過鋸子。」", "ask": "「你有沒有一件事，花了很多時間，可是覺得自己好像原地踏步？」", "out": "一則自己的事件 + 指出當時如果停下來檢查一次，可以檢查什麼。", "tool": "每週磨刀四問", "ifthen": "「當我讀了很久卻沒進步，我會先停下來檢查方法，再決定要不要繼續。」", "revisit": "四週後回頭看：那四件「改變的一件事」，哪一件真的有用。"}, {"title": "連續衝刺之後撐不住", "grade": "國中／高年級", "def": "不斷更新是「把休息和補充排進計畫，不是等到撐不住才停」。", "judgments": [{"q": "考完試連續三天什麼都不做，然後又回到原來的狀態", "v": "再問", "r": "是補電，還是只是放空？"}, {"q": "衝刺前就先排好每天的睡眠和一段運動時間", "v": "是", "r": ""}, {"q": "覺得自己還撐得住，所以繼續熬夜，等真的生病再休息", "v": "不是", "r": "不是拚，是預支"}], "hear": "「休息要先排進去，不是剩下的才給它。」", "event": "「有一個學期，我連續兩個多月每天工作到十一點，我告訴自己等這波結束再休息。結束那天，我整整病了一週，那一週的進度比忙的時候還落後。我把休息當成獎勵，可是我從來沒有真的給過自己。」", "ask": "「你有沒有一次拚到最後，反而因為撐不住而沒能把事情做完？」", "out": "一則自己的事件 + 指出撐不住之前，身體或情緒先出現的訊號。", "tool": "衝刺前的補電計畫", "ifthen": "「當我要開始一段要拚的日子，我會先把睡覺和運動的時間寫進計畫，再排其他的事。」", "revisit": "下一次衝刺結束後，對照這次：撐不住的訊號有沒有比上次晚出現。"}]}, {"no": 8, "name": "找到內心的聲音", "ex": [{"title": "我很會的一件事", "grade": "國小中年級", "def": "找到內心的聲音是「知道自己擅長什麼、在意什麼，並且願意用它去幫別人」。", "judgments": [{"q": "我很會玩遊戲，可是我只想自己玩", "v": "再問", "r": "這件事能不能也幫到別人？"}, {"q": "大家都說我畫圖很好，所以我就畫，其實我不太喜歡", "v": "不是", "r": "別人說的，不是我在意的"}, {"q": "我喜歡畫圖，所以幫班上畫了值日生輪流表", "v": "是", "r": ""}], "hear": "「聲音是我在意的事，不是別人誇我的事。」", "event": "「我剛任教時，大家都說我很會做行政，所以學校的雜事都交給我。我做得很好，也一直做，做到第四年，我才發現我根本不喜歡。我很會做的，不一定是我在意的。」", "ask": "「你有沒有一件事，別人都說你很會，可是你自己其實不太喜歡？」然後等。", "out": "一則自己的事件，說得出別人說我會什麼、我自己真正喜歡什麼。", "tool": "我的三個圈", "ifthen": "「當班上缺一件我做得來、也喜歡的事，我會舉手說：這個我可以試試看。」", "revisit": "兩週後只問一句：「你用你的聲音幫班上做了什麼？」不比較誰做得多。"}, {"title": "班會上不敢舉手", "grade": "國中", "def": "找到內心的聲音是「把我真正想說的說出來，即使不是最多人同意的那一個」。", "judgments": [{"q": "看大家怎麼說，我就跟著舉手", "v": "不是", "r": "跟著走，不是自己的想法"}, {"q": "我有想法，但怕被笑，所以沒講", "v": "再問", "r": "是沒有想法，還是有想法不敢說？"}, {"q": "我不確定對不對，但先說：「我的想法是……，可能還不完整」", "v": "是", "r": ""}], "hear": "「沒說出口的想法，別人聽不見。」", "event": "「有一次開會，我對一個決議有不同的看法，可是我想等自己把理由整理得更完整再說。等我準備好，決議已經通過了。後來有同事跟我說，他其實也有一樣的擔心，只是也在等別人先開口。」", "ask": "「你有沒有一次心裡有話，最後沒說，後來有人說出來了？」", "out": "一則自己的事件 + 指出當時攔住我的是什麼。", "tool": "想法與行動對照", "ifthen": "「當我有想法卻不敢說，我會先用一句『我的想法是……，可能還不完整』開頭。」", "revisit": "兩週後回頭標一次，這次的位置往右上角移了多少。"}, {"title": "帶學弟妹做專題", "grade": "國中／高年級", "def": "激勵別人找到聲音是「不替他做決定，而是問對問題，讓他自己說出來」。", "judgments": [{"q": "他做得慢，我直接接手，很快就做完了", "v": "不是", "r": "替他做，他的聲音沒出現"}, {"q": "我告訴他該怎麼做，他照做了", "v": "再問", "r": "是他自己的想法，還是我的？"}, {"q": "問他「你覺得這一段想傳達什麼」，等他自己回答", "v": "是", "r": ""}], "hear": "「好的帶領，是讓他說得比你多。」", "event": "「我帶一位新老師，他的教案有個地方我覺得不對，我直接幫他改好，還很有效率地教他為什麼。他每次都說謝謝，可是到學期結束，他還是不敢自己決定。我以為我在幫他，其實是我把他的位置佔掉了。」", "ask": "「你有沒有被別人『幫忙』到，最後反而覺得那件事不是你的了？」", "out": "一則自己的事件 + 指出當時如果對方問我一句，我會說什麼。", "tool": "帶領三步", "ifthen": "「當我很想直接告訴他答案，我會先問一個問題，等他說完，再補一句我的看法。」", "revisit": "專題結束後，請學弟妹自己說：這份專題哪一部分是他決定的。"}]}]</script>
+<script>
+(function () {
+  var HABITS = JSON.parse(document.getElementById('habits-data').textContent);
+  var NUM = ['一', '二', '三', '四', '五', '六', '七', '八'];
+  var BANDS = [
+    { n: '低年段', g: '國小中年級', lv: '行為層次', tip: '動作快、照做，不等於有選擇。' },
+    { n: '中年段', g: '國中', lv: '歸因層次', tip: '把決定權或責任交給別人。' },
+    { n: '高年段', g: '高年級／國中', lv: '策略層次', tip: '重複無效動作、放棄溝通、折衷。' }
+  ];
+  var NUDGES = ['下課十分鐘', '營養午餐', '打掃時間', '分組報告', '班級群組', '體育課', '社團活動', '段考前一週', '校外教學', '調座位', '借東西沒還', '比賽輸了之後', '早自習', '手機與零用錢', '值日生', '才藝表演前'];
+  var FIELDS = ['scene', 'def', 'hear', 'event', 'failure', 'ask', 'out', 'tool', 'toolDesc', 'ifthen', 'when', 'revisit'];
+  var KEY = 'sevenhabits-generator-v1';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var st = { habit: 0, band: 1, topic: '', plan: null, nudge: '' };
+  var sample = null, ctl = null;
+
+  function load() { try { var s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') st = Object.assign(st, s); } catch (e) {} }
+  function persist() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} }
+  function setStatus(msg, err, id) { var el = $(id || 'status'); el.textContent = msg || ''; el.className = 'status' + (err ? ' err' : ''); }
+
+  function renderControls() {
+    $('habits').innerHTML = '';
+    HABITS.forEach(function (h, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip'; b.setAttribute('aria-pressed', i === st.habit);
+      b.textContent = '習慣' + NUM[i] + '　' + h.name;
+      b.onclick = function () { st.habit = i; persist(); renderControls(); };
+      $('habits').appendChild(b);
+    });
+    $('bands').innerHTML = '';
+    BANDS.forEach(function (b, i) {
+      var el = document.createElement('button');
+      el.type = 'button'; el.className = 'band'; el.setAttribute('aria-pressed', i === st.band);
+      var t = document.createElement('b'); t.textContent = b.n + '（' + b.g + '）';
+      var s = document.createElement('span'); s.textContent = b.lv + '：' + b.tip;
+      el.append(t, s);
+      el.onclick = function () { st.band = i; persist(); renderControls(); };
+      $('bands').appendChild(el);
+    });
+  }
+
+  function autosize(t) { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; }
+
+  function renderJudges() {
+    var box = $('judges'); box.innerHTML = '';
+    st.plan.judgments.forEach(function (j, i) {
+      var row = document.createElement('div'); row.className = 'judge';
+      var n = document.createElement('div'); n.className = 'jn'; n.textContent = (i + 1);
+      var body = document.createElement('div'); body.className = 'body';
+      var q = document.createElement('textarea'); q.rows = 1; q.value = j.q; q.setAttribute('aria-label', '第' + (i + 1) + '題');
+      q.oninput = function () { j.q = q.value; autosize(q); onEdit(); };
+      var vs = document.createElement('div'); vs.className = 'vs';
+      [['是', '是'], ['不是', '不是'], ['再問', '再問一句']].forEach(function (p) {
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'v'; b.dataset.v = p[0]; b.textContent = p[1];
+        b.setAttribute('aria-pressed', j.v === p[0]);
+        b.onclick = function () { j.v = j.v === p[0] ? '' : p[0]; vs.querySelectorAll('.v').forEach(function (x) { x.setAttribute('aria-pressed', x.dataset.v === j.v); }); onEdit(); };
+        vs.appendChild(b);
+      });
+      var r = document.createElement('input'); r.type = 'text'; r.value = j.r || ''; r.placeholder = '理由（「是」可留空）'; r.setAttribute('aria-label', '第' + (i + 1) + '題理由');
+      r.oninput = function () { j.r = r.value; onEdit(); };
+      body.append(q, vs, r); row.append(n, body); box.appendChild(row);
+      requestAnimationFrame(function () { autosize(q); });
+    });
+  }
+
+  function renderPlan() {
+    var has = !!st.plan;
+    $('sheet').hidden = !has; $('empty').hidden = has;
+    if (!has) return;
+    var h = HABITS[st.habit], b = BANDS[st.band];
+    $('kicker').textContent = '習慣' + NUM[st.habit] + '・' + h.name + '　' + b.n + '（' + b.g + '）';
+    $('ptitle').textContent = st.plan.title || '（未命名教案）';
+    FIELDS.forEach(function (k) { var t = $(k); t.value = st.plan[k] || ''; });
+    renderJudges();
+    requestAnimationFrame(function () { FIELDS.forEach(function (k) { autosize($(k)); }); });
+    updateChecks();
+  }
+
+  function checks(d) {
+    var js = d.judgments || [];
+    var filled = js.length === 3 && js.every(function (j) { return (j.q || '').trim() && j.v; });
+    var notYes = js.filter(function (j) { return j.v && j.v !== '是'; }).length;
+    var ifOk = /(當|下次|如果).{2,}(我會|我要)/.test((d.ifthen || '').replace(/\s/g, ''));
+    var evOk = (d.event || '').trim().length >= 30 && (d.failure || '').trim().length >= 4;
+    var T = function (k) { return (d[k] || '').trim(); };
+    return [
+      { ok: !!T('def'), label: '定義' },
+      { ok: filled && notYes >= 2, label: '判斷題至少兩題是錯誤範例' },
+      { ok: !!T('hear'), label: '該聽見' },
+      { ok: evOk, label: '教師事件含失敗' },
+      { ok: !!T('ask') && !!T('out'), label: '提問與學生產出' },
+      { ok: ifOk, label: 'if-then 格式' },
+      { ok: !!T('when') && !!T('revisit') && !!T('tool'), label: '工具與回顧時間點' }
+    ];
+  }
+  function updateChecks() {
+    var c = checks(st.plan), n = c.filter(function (x) { return x.ok; }).length;
+    var box = $('checks'); box.innerHTML = '';
+    var h = document.createElement('span'); h.className = 'n'; h.textContent = n + ' / ' + c.length + ' 項通過'; box.appendChild(h);
+    c.forEach(function (x) {
+      var s = document.createElement('span'); s.className = 'ck ' + (x.ok ? 'ok' : 'bad');
+      var i = document.createElement('i'); i.textContent = x.ok ? '✓' : '✗';
+      s.append(i, x.label); box.appendChild(s);
+    });
+    $('fix').hidden = !(sample && n < c.length);
+  }
+  function onEdit() { persist(); updateChecks(); }
+
+  FIELDS.forEach(function (k) {
+    $(k).addEventListener('input', function () { if (!st.plan) return; st.plan[k] = $(k).value; autosize($(k)); onEdit(); });
+  });
+
+  function normalize(o) {
+    var S = function (x) { return String(x == null ? '' : x).trim(); };
+    var p = { title: S(o.title) };
+    FIELDS.forEach(function (k) { p[k] = S(o[k]); });
+    var js = Array.isArray(o.judgments) ? o.judgments : [];
+    p.judgments = [0, 1, 2].map(function (i) {
+      var j = js[i] || {}, v = S(j.v);
+      if (v === '再問一句' || v === '需要再問一句') v = '再問';
+      return { q: S(j.q), v: (v === '是' || v === '不是' || v === '再問') ? v : '', r: S(j.r) };
+    });
+    return p;
+  }
+
+  var SHAPE = '{"title":"教案名稱，8-14 字，像一個課堂主題","scene":"這堂課的情境，一句話","def":"一句話定義，格式：習慣名是「…」。","judgments":[{"q":"學生會遇到的情況","v":"是|不是|再問","r":"理由，v 是「是」時可留空"},{同左},{同左}],"hear":"一句學生該聽見的話","event":"教師事件，第一人稱，100 字內，含老師自己的失敗，不美化，用「」包起來","failure":"event 中描述失敗的那一句，原文照抄","ask":"一個開放提問，用「」包起來","out":"學生要分享的自己的事件，要說得出什麼","tool":"工具名稱","toolDesc":"每一格寫什麼、學生怎麼填，兩句內","ifthen":"if-then 句，格式「當＿＿，我會＿＿。」，要具體","when":"回顧時間點，如一週後","revisit":"回顧時只問的一句話，不評分"}';
+
+  function buildPrompt() {
+    var h = HABITS[st.habit], b = BANDS[st.band];
+    var ref = h.ex[st.band] || h.ex[0] || {};
+    var scene = st.topic.trim()
+      ? '教學情境（老師指定）：' + st.topic.trim()
+      : '老師沒有指定情境。請你自己發想一個貼近學生、具體、少見但真實的情境（這次的靈感方向：' + st.nudge + '，可以不採用）。';
+    var sampleJson = JSON.stringify({ def: ref.def, judgments: ref.judgments, hear: ref.hear, event: ref.event, ask: ref.ask, out: ref.out, tool: ref.tool, ifthen: ref.ifthen, revisit: ref.revisit });
+    return [
+      '你是品格教育與社會情緒學習的課程設計者，要為台灣的老師設計一份「定義、連結、應用」三步驟的完整教案。',
+      '習慣' + NUM[st.habit] + '「' + h.name + '」。年段：' + b.n + '（' + b.g + '）；錯誤範例要落在「' + b.lv + '」：' + b.tip,
+      scene,
+      '創意要求：先在心裡想三個不同的情境角度，選最具體、最不老套的那一個；不要沿用參考範例的情境或句子。',
+      '硬性規則：',
+      '1. 繁體中文、台灣用語，語氣平實，不用口號和串場詞。',
+      '2. 判斷題三題中至少兩題的 v 不是「是」，且錯誤範例看起來像對的（動作快、很努力、很有禮貌），學生要想一下才分得出來。',
+      '3. 教師事件是老師自己的真實感失敗，要寫出失敗發生的那一句，不要把結尾寫成成功收場。',
+      '4. if-then 要具體到學生明天就能用，不要寫成空泛的勉勵。',
+      '5. 不新增與情境無關的事實或數據。',
+      '參考範例（只學結構與語氣）：' + sampleJson,
+      '只輸出一個 JSON 物件，不要任何其他文字。欄位如下：' + SHAPE
+    ].join('\n');
+  }
+
+  function busy(on, msg) {
+    $('gen').disabled = on; $('regen').disabled = on; $('fix').disabled = on;
+    $('stop').hidden = !on;
+    setStatus(msg || '');
+    setStatus('', false, 'foot-status');
+  }
+  function errCopy(e) {
+    var c = e && e.code;
+    if (c === 'cancelled') return '已停止。';
+    if (c === 'not_granted') return '你尚未允許這個頁面使用 Claude，所以無法生成。';
+    if (c === 'rate_limited') return '呼叫太頻繁或已達使用上限，請稍後再按一次。';
+    if (c === 'session_expired') return '登入已過期，請重新整理頁面並登入。';
+    if (c === 'invalid_json') return 'AI 回傳的格式不完整，請再按一次生成。';
+    return '生成失敗，請再按一次。';
+  }
+
+  async function run(prompt, label) {
+    if (!sample) { setStatus('這個環境沒有 AI，請在 Claude 裡開啟這個頁面。', true); return null; }
+    ctl = new AbortController();
+    busy(true, 'Thinking…');
+    var t0 = Date.now();
+    try {
+      var data = await sample.json(prompt, {
+        signal: ctl.signal, cache: false,
+        onText: function (u) { setStatus(label + '　已寫 ' + u.text.length + ' 字　' + Math.round((Date.now() - t0) / 1000) + ' 秒'); }
+      });
+      return data;
+    } catch (e) {
+      setStatus(errCopy(e), e && e.code !== 'cancelled');
+      return null;
+    } finally { busy(false, $('status').textContent); }
+  }
+
+  async function generate() {
+    st.topic = $('topic').value;
+    st.nudge = NUDGES[Math.floor(Math.random() * NUDGES.length)];
+    persist();
+    var o = await run(buildPrompt(), '設計中');
+    if (!o || typeof o !== 'object') return;
+    st.plan = normalize(o); persist(); renderPlan();
+    setStatus('完成。內容都可以直接修改。');
+    $('sheet').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  async function fixIt() {
+    var bad = checks(st.plan).filter(function (x) { return !x.ok; }).map(function (x) { return x.label; });
+    var p = '以下是一份教案草稿（JSON）。請只修正未通過的項目：' + bad.join('、') + '。其他欄位維持原意，不要改寫成全新的情境。\n'
+      + '規則：判斷題至少兩題 v 不是「是」；教師事件要有老師自己的失敗，至少 30 字，failure 是 event 中原文的一句；if-then 格式「當＿＿，我會＿＿。」；回顧時間點與工具要填。\n'
+      + '草稿：' + JSON.stringify(st.plan) + '\n只輸出修正後的完整 JSON 物件，欄位如下：' + SHAPE;
+    var o = await run(p, '修正中');
+    if (!o || typeof o !== 'object') return;
+    st.plan = normalize(o); persist(); renderPlan();
+    setStatus('已修正。');
+  }
+
+  function toText() {
+    var p = st.plan, h = HABITS[st.habit], b = BANDS[st.band];
+    var VL = { '是': '是', '不是': '不是', '再問': '再問一句' };
+    var L = [];
+    L.push('# ' + (p.title || '教案'));
+    L.push('習慣' + NUM[st.habit] + '・' + h.name + '　' + b.n + '（' + b.g + '）');
+    if (p.scene) L.push('情境：' + p.scene);
+    L.push('', '## 1 定義', p.def, '', '判斷題');
+    p.judgments.forEach(function (j, i) { L.push((i + 1) + '. ' + j.q + ' → ' + (VL[j.v] || '') + (j.r ? '（' + j.r + '）' : '')); });
+    L.push('', '該聽見：' + p.hear);
+    L.push('', '## 2 連結', '教師事件：' + p.event, '失敗的那一句：' + p.failure, '開放提問：' + p.ask, '學生產出：' + p.out);
+    L.push('', '## 3 應用', '工具：' + p.tool, '怎麼用：' + p.toolDesc, 'if-then：' + p.ifthen, '回顧時間點：' + p.when, '回顧時只問：' + p.revisit);
+    return L.join('\n');
+  }
+
+  $('gen').onclick = generate;
+  $('regen').onclick = generate;
+  $('fix').onclick = fixIt;
+  $('stop').onclick = function () { if (ctl) ctl.abort(); };
+  $('copy').onclick = async function () {
+    var txt = toText();
+    try { await navigator.clipboard.writeText(txt); setStatus('已複製。', false, 'foot-status'); }
+    catch (e) {
+      var t = document.createElement('textarea'); t.value = txt; t.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(t); t.select();
+      var ok = false; try { ok = document.execCommand('copy'); } catch (x) {}
+      t.remove(); setStatus(ok ? '已複製。' : '無法自動複製，請改用下載。', !ok, 'foot-status');
+    }
+  };
+  $('save').onclick = async function () {
+    try {
+      var dl = await claude.use('downloads');
+      if (!dl) { setStatus('這個環境無法下載，請用「複製全文」。', true, 'foot-status'); return; }
+      await dl.save({ filename: '教案-習慣' + NUM[st.habit] + '-' + HABITS[st.habit].name + '.md', data: toText() });
+      setStatus('已送出下載。', false, 'foot-status');
+    } catch (e) { if (!e || e.code !== 'declined') setStatus('下載失敗，請用「複製全文」。', true, 'foot-status'); }
+  };
+
+  load();
+  $('topic').value = st.topic || '';
+  renderControls();
+  renderPlan();
+
+  (async function () {
+    try { sample = (window.claude && window.claude.use) ? await window.claude.use('sample') : null; } catch (e) { sample = null; }
+    if (!sample) { $('gen').disabled = true; $('regen').disabled = true; setStatus('這個環境沒有 AI，請在 Claude 裡開啟這個頁面。', true); }
+    try { var d = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null; $('save').hidden = !d; } catch (e) {}
+    if (st.plan) updateChecks();
+  })();
+})();
+</script>
