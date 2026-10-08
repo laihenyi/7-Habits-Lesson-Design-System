@@ -1,7 +1,7 @@
 <title>七個習慣教案生成器</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;800&display=swap" rel="stylesheet">
 <style>
 /* 版面：上方三個選擇＋一個按鈕，下方是一張可直接編修的教案單，檢查條固定在頂端 */
 :root {
@@ -17,6 +17,8 @@
   --fail-soft: #F8E6E1;
   --ok: #3F7A3A;
   --ask: #2C5C85;
+  --d-paper: #F3F6F6; --d-box: #FFFFFF; --d-ink: #17262B; --d-muted: #4A5C61; --d-soft: #6F8186;
+  --d-rule: rgba(23,38,43,0.16); --d-accent: #0F5F5A; --d-tint: rgba(15,95,90,0.10); --d-fill: rgba(74,92,97,0.10);
   --font-display: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
   --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
 }
@@ -25,6 +27,8 @@
     --bg: #0F1A1D; --surface: #162428; --ink: #E6EEEF; --muted: #9DB0B4; --line: #2A3D42;
     --accent: #5FC4BB; --accent-ink: #0B1C1E; --accent-soft: #1C3A3B;
     --fail: #F08C74; --fail-soft: #3A2420; --ok: #8CC784; --ask: #7FB4E0;
+    --d-paper: #0F1A1D; --d-box: #162428; --d-ink: #E6EEEF; --d-muted: #A8BBBF; --d-soft: #82989C;
+    --d-rule: rgba(230,238,239,0.18); --d-accent: #5FC4BB; --d-tint: rgba(95,196,187,0.14); --d-fill: rgba(168,187,191,0.12);
     color-scheme: dark;
   }
 }
@@ -32,6 +36,8 @@
   --bg: #0F1A1D; --surface: #162428; --ink: #E6EEEF; --muted: #9DB0B4; --line: #2A3D42;
   --accent: #5FC4BB; --accent-ink: #0B1C1E; --accent-soft: #1C3A3B;
   --fail: #F08C74; --fail-soft: #3A2420; --ok: #8CC784; --ask: #7FB4E0;
+  --d-paper: #0F1A1D; --d-box: #162428; --d-ink: #E6EEEF; --d-muted: #A8BBBF; --d-soft: #82989C;
+  --d-rule: rgba(230,238,239,0.18); --d-accent: #5FC4BB; --d-tint: rgba(95,196,187,0.14); --d-fill: rgba(168,187,191,0.12);
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -93,6 +99,14 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
 .fail-note b { color: var(--fail); }
 .foot { padding: 16px 20px 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-top: 1px solid var(--line); }
 .empty { color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 28px 20px; text-align: center; }
+select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; }
+.dgm { overflow-x: auto; border-radius: 8px; background: var(--d-paper); }
+.dgm svg { display: block; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: 13px; background: transparent; color: var(--ink); border: 0; padding: 6px 14px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.hint { color: var(--muted); font-size: 13px; margin: 0; }
 @media (prefers-reduced-motion: no-preference) { .btn, .chip, .band, .v { transition: background .15s, border-color .15s; } }
 </style>
 
@@ -139,9 +153,18 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
     </section>
 
     <section class="step">
-      <div class="step-h"><span class="no">3</span><h3>應用</h3><p>一個工具、一句 if-then、一個回顧時間點。</p></div>
-      <div class="f"><label for="tool">工具</label><textarea id="tool" rows="1"></textarea></div>
+      <div class="step-h"><span class="no">3</span><h3>應用</h3><p>優先選用領導力工具，再接一句 if-then 和一個回顧時間點。</p></div>
+      <div class="f"><label for="toolSel">領導力工具</label><select id="toolSel"></select><input type="text" id="tool" maxlength="40" placeholder="其他工具名稱" hidden aria-label="其他工具名稱"></div>
       <div class="f"><label for="toolDesc">工具怎麼用</label><textarea id="toolDesc" rows="2"></textarea></div>
+      <div class="f"><span class="lbl">工具圖</span>
+        <div class="row">
+          <div class="seg" role="group" aria-label="圖的版本"><button type="button" id="vFill" aria-pressed="true">範例填寫</button><button type="button" id="vBlank" aria-pressed="false">空白學習單</button></div>
+          <button class="btn ghost small" id="redraw" type="button">重畫範例內容</button>
+          <button class="btn ghost small" id="svgSave" type="button" hidden>下載 SVG</button>
+        </div>
+        <div class="dgm" id="dgm"></div>
+        <p class="hint" id="dgm-status" role="status"></p>
+      </div>
       <div class="f"><label for="ifthen">if-then 句型</label><textarea id="ifthen" rows="2"></textarea></div>
       <div class="f"><label for="when">回顧時間點</label><textarea id="when" rows="1"></textarea></div>
       <div class="f"><label for="revisit">回顧時只問</label><textarea id="revisit" rows="2"></textarea></div>
@@ -159,6 +182,9 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
 
 <script type="application/json" id="habits-data">__HABITS__</script>
 <script>
+__DG__
+</script>
+<script>
 (function () {
   var HABITS = JSON.parse(document.getElementById('habits-data').textContent);
   var NUM = ['一', '二', '三', '四', '五', '六', '七', '八'];
@@ -169,10 +195,11 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
   ];
   var NUDGES = ['下課十分鐘', '營養午餐', '打掃時間', '分組報告', '班級群組', '體育課', '社團活動', '段考前一週', '校外教學', '調座位', '借東西沒還', '比賽輸了之後', '早自習', '手機與零用錢', '值日生', '才藝表演前'];
   var FIELDS = ['scene', 'def', 'hear', 'event', 'failure', 'ask', 'out', 'tool', 'toolDesc', 'ifthen', 'when', 'revisit'];
+  var downloads = null;
   var KEY = 'sevenhabits-generator-v1';
 
   var $ = function (id) { return document.getElementById(id); };
-  var st = { habit: 0, band: 1, topic: '', plan: null, nudge: '' };
+  var st = { habit: 0, band: 1, topic: '', plan: null, nudge: '', view: 'fill' };
   var sample = null, ctl = null;
 
   function load() { try { var s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') st = Object.assign(st, s); } catch (e) {} }
@@ -200,7 +227,7 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
     });
   }
 
-  function autosize(t) { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; }
+  function autosize(t) { if (t.tagName !== 'TEXTAREA') return; t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; }
 
   function renderJudges() {
     var box = $('judges'); box.innerHTML = '';
@@ -233,8 +260,40 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
     $('ptitle').textContent = st.plan.title || '（未命名教案）';
     FIELDS.forEach(function (k) { var t = $(k); t.value = st.plan[k] || ''; });
     renderJudges();
+    syncTool();
     requestAnimationFrame(function () { FIELDS.forEach(function (k) { autosize($(k)); }); });
     updateChecks();
+    drawDiagram();
+  }
+
+  function buildToolSelect() {
+    var sel = $('toolSel'); sel.innerHTML = '';
+    DG.TOOLS.forEach(function (t) { var o = document.createElement('option'); o.value = t.name; o.textContent = t.name; sel.appendChild(o); });
+    var o = document.createElement('option'); o.value = ''; o.textContent = '其他工具（自行輸入）'; sel.appendChild(o);
+  }
+  function syncTool() {
+    var t = DG.toolFor(st.plan.tool);
+    $('toolSel').value = t ? t.name : '';
+    $('tool').hidden = !!t;
+    $('tool').value = st.plan.tool || '';
+  }
+  function curDiagram() {
+    var t = DG.toolFor(st.plan && st.plan.tool);
+    if (!t) return { t: null, data: null };
+    var d = st.plan.diagram && st.plan.diagram.key === t.key ? st.plan.diagram.data : null;
+    return { t: t, data: d };
+  }
+  function drawDiagram() {
+    if (!st.plan) return;
+    var cd = curDiagram(), box = $('dgm'), hint = $('dgm-status');
+    var fill = st.view !== 'blank' && !!cd.data;
+    $('vFill').setAttribute('aria-pressed', st.view !== 'blank'); $('vBlank').setAttribute('aria-pressed', st.view === 'blank');
+    $('svgSave').hidden = !(downloads && cd.t);
+    $('redraw').disabled = !sample || !cd.t;
+    $('redraw').textContent = cd.data ? '重畫範例內容' : '生成範例內容';
+    if (!cd.t) { box.innerHTML = ''; hint.textContent = '這個工具沒有內建的圖。從清單選一個領導力工具，就會出現對應的圖與空白學習單。'; return; }
+    box.innerHTML = DG.render(cd.t.key, cd.data, { fill: fill });
+    hint.textContent = (st.view !== 'blank' && !cd.data) ? '這個工具還沒有範例內容，先顯示空白學習單。按「生成範例內容」讓 AI 依這堂課填寫。' : (fill ? '範例內容由 AI 依這堂課填寫，可切換成空白學習單給學生用。' : '空白學習單：學生自己填。');
   }
 
   function checks(d) {
@@ -251,6 +310,7 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
       { ok: evOk, label: '教師事件含失敗' },
       { ok: !!T('ask') && !!T('out'), label: '提問與學生產出' },
       { ok: ifOk, label: 'if-then 格式' },
+      { ok: !!DG.toolFor(d.tool), label: '工具為領導力工具' },
       { ok: !!T('when') && !!T('revisit') && !!T('tool'), label: '工具與回顧時間點' }
     ];
   }
@@ -275,6 +335,10 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
     var S = function (x) { return String(x == null ? '' : x).trim(); };
     var p = { title: S(o.title) };
     FIELDS.forEach(function (k) { p[k] = S(o[k]); });
+    var tl = DG.toolFor(p.tool);
+    if (tl) p.tool = tl.name;
+    var dd = tl ? DG.clean(tl.key, o.diagram) : null;
+    p.diagram = dd ? { key: tl.key, data: dd } : null;
     var js = Array.isArray(o.judgments) ? o.judgments : [];
     p.judgments = [0, 1, 2].map(function (i) {
       var j = js[i] || {}, v = S(j.v);
@@ -284,7 +348,13 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
     return p;
   }
 
-  var SHAPE = '{"title":"教案名稱，8-14 字，像一個課堂主題","scene":"這堂課的情境，一句話","def":"一句話定義，格式：習慣名是「…」。","judgments":[{"q":"學生會遇到的情況","v":"是|不是|再問","r":"理由，v 是「是」時可留空"},{同左},{同左}],"hear":"一句學生該聽見的話","event":"教師事件，第一人稱，100 字內，含老師自己的失敗，不美化，用「」包起來","failure":"event 中描述失敗的那一句，原文照抄","ask":"一個開放提問，用「」包起來","out":"學生要分享的自己的事件，要說得出什麼","tool":"工具名稱","toolDesc":"每一格寫什麼、學生怎麼填，兩句內","ifthen":"if-then 句，格式「當＿＿，我會＿＿。」，要具體","when":"回顧時間點，如一週後","revisit":"回顧時只問的一句話，不評分"}';
+  var SHAPE = '{"title":"教案名稱，8-14 字，像一個課堂主題","scene":"這堂課的情境，一句話","def":"一句話定義，格式：習慣名是「…」。","judgments":[{"q":"學生會遇到的情況","v":"是|不是|再問","r":"理由，v 是「是」時可留空"},{同左},{同左}],"hear":"一句學生該聽見的話","event":"教師事件，第一人稱，100 字內，含老師自己的失敗，不美化，用「」包起來","failure":"event 中描述失敗的那一句，原文照抄","ask":"一個開放提問，用「」包起來","out":"學生要分享的自己的事件，要說得出什麼","tool":"必須是 14 個領導力工具名稱之一","toolDesc":"學生拿到這張圖時每一格寫什麼，兩句內","ifthen":"if-then 句，格式「當＿＿，我會＿＿。」，要具體","when":"回顧時間點，如一週後","revisit":"回顧時只問的一句話，不評分","diagram":"所選工具的示範填寫內容，格式見工具清單，內容要和這堂課的情境、定義呼應"}';
+
+  function toolList() {
+    return DG.TOOLS.map(function (t) {
+      return (t.habits.indexOf(st.habit + 1) >= 0 ? '★' : '・') + t.name + '：' + t.desc + ' diagram 格式：' + t.shape;
+    }).join('\n');
+  }
 
   function buildPrompt() {
     var h = HABITS[st.habit], b = BANDS[st.band];
@@ -304,16 +374,19 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
       '3. 教師事件是老師自己的真實感失敗，要寫出失敗發生的那一句，不要把結尾寫成成功收場。',
       '4. if-then 要具體到學生明天就能用，不要寫成空泛的勉勵。',
       '5. 不新增與情境無關的事實或數據。',
+      '6. 第三步驟「應用」的工具，優先從下列 14 個領導力工具挑一個最適合這個情境的；只有確實沒有合適的才自訂。tool 欄只寫工具名稱，並依該工具的 diagram 格式輸出示範填寫內容，每格要簡短（不超過標示字數）。標 ★ 的是常與本習慣搭配的工具。',
+      toolList(),
       '參考範例（只學結構與語氣）：' + sampleJson,
       '只輸出一個 JSON 物件，不要任何其他文字。欄位如下：' + SHAPE
     ].join('\n');
   }
 
-  function busy(on, msg) {
-    $('gen').disabled = on; $('regen').disabled = on; $('fix').disabled = on;
+  function busy(on, msg, sid) {
+    $('gen').disabled = on; $('regen').disabled = on; $('fix').disabled = on; $('redraw').disabled = on;
     $('stop').hidden = !on;
-    setStatus(msg || '');
+    setStatus('');
     setStatus('', false, 'foot-status');
+    if (sid) setStatus(msg || '', false, sid); else setStatus(msg || '');
   }
   function errCopy(e) {
     var c = e && e.code;
@@ -325,21 +398,21 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
     return '生成失敗，請再按一次。';
   }
 
-  async function run(prompt, label) {
-    if (!sample) { setStatus('這個環境沒有 AI，請在 Claude 裡開啟這個頁面。', true); return null; }
+  async function run(prompt, label, sid) {
+    if (!sample) { setStatus('這個環境沒有 AI，請在 Claude 裡開啟這個頁面。', true, sid); return null; }
     ctl = new AbortController();
-    busy(true, 'Thinking…');
+    busy(true, 'Thinking…', sid);
     var t0 = Date.now();
     try {
       var data = await sample.json(prompt, {
         signal: ctl.signal, cache: false,
-        onText: function (u) { setStatus(label + '　已寫 ' + u.text.length + ' 字　' + Math.round((Date.now() - t0) / 1000) + ' 秒'); }
+        onText: function (u) { setStatus(label + '　已寫 ' + u.text.length + ' 字　' + Math.round((Date.now() - t0) / 1000) + ' 秒', false, sid); }
       });
       return data;
     } catch (e) {
-      setStatus(errCopy(e), e && e.code !== 'cancelled');
+      setStatus(errCopy(e), e && e.code !== 'cancelled', sid);
       return null;
-    } finally { busy(false, $('status').textContent); }
+    } finally { var keep = $(sid || 'status').textContent; busy(false, keep, sid); }
   }
 
   async function generate() {
@@ -357,7 +430,7 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
     var bad = checks(st.plan).filter(function (x) { return !x.ok; }).map(function (x) { return x.label; });
     var p = '以下是一份教案草稿（JSON）。請只修正未通過的項目：' + bad.join('、') + '。其他欄位維持原意，不要改寫成全新的情境。\n'
       + '規則：判斷題至少兩題 v 不是「是」；教師事件要有老師自己的失敗，至少 30 字，failure 是 event 中原文的一句；if-then 格式「當＿＿，我會＿＿。」；回顧時間點與工具要填。\n'
-      + '草稿：' + JSON.stringify(st.plan) + '\n只輸出修正後的完整 JSON 物件，欄位如下：' + SHAPE;
+      + '草稿：' + JSON.stringify(Object.assign({}, st.plan, { diagram: st.plan.diagram ? st.plan.diagram.data : null })) + '\n只輸出修正後的完整 JSON 物件，欄位如下：' + SHAPE;
     var o = await run(p, '修正中');
     if (!o || typeof o !== 'object') return;
     st.plan = normalize(o); persist(); renderPlan();
@@ -379,6 +452,38 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
     return L.join('\n');
   }
 
+  async function redraw() {
+    var cd = curDiagram(); if (!cd.t || !st.plan) return;
+    var p = st.plan;
+    var q = '以下是一堂品格教案的內容。請為「' + cd.t.name + '」填寫這堂課的示範內容，讓老師能直接拿來示範給學生看。\n'
+      + '習慣' + NUM[st.habit] + '「' + HABITS[st.habit].name + '」，年段：' + BANDS[st.band].n + '（' + BANDS[st.band].g + '）。\n'
+      + '情境：' + p.scene + '\n定義：' + p.def + '\n教師事件：' + p.event + '\n工具用法：' + p.toolDesc + '\n'
+      + '工具說明：' + cd.t.desc + '\n'
+      + '內容要和上述情境、定義呼應，每格簡短。只輸出一個 JSON 物件，不要任何其他文字，格式：' + cd.t.shape;
+    var o = await run(q, '畫圖中', 'dgm-status');
+    if (!o || typeof o !== 'object') return;
+    var dd = DG.clean(cd.t.key, o);
+    if (!dd) { setStatus('AI 回傳的圖內容不完整，請再按一次。', true, 'dgm-status'); return; }
+    st.plan.diagram = { key: cd.t.key, data: dd }; st.view = 'fill'; persist(); drawDiagram();
+  }
+  $('redraw').onclick = redraw;
+  $('vFill').onclick = function () { st.view = 'fill'; persist(); drawDiagram(); };
+  $('vBlank').onclick = function () { st.view = 'blank'; persist(); drawDiagram(); };
+  $('toolSel').onchange = function () {
+    if (!st.plan) return;
+    var v = $('toolSel').value;
+    if (v) { st.plan.tool = v; } else { st.plan.tool = ''; }
+    persist(); syncTool(); updateChecks(); drawDiagram();
+  };
+  $('tool').addEventListener('input', function () { if (!st.plan) return; var t = DG.toolFor($('tool').value); if (t) { st.plan.tool = t.name; syncTool(); } updateChecks(); drawDiagram(); });
+  $('svgSave').onclick = async function () {
+    var cd = curDiagram(); if (!cd.t || !downloads) return;
+    var fill = st.view !== 'blank' && !!cd.data;
+    try {
+      await downloads.save({ filename: '領導力工具-' + cd.t.name + (fill ? '' : '-空白學習單') + '.svg', data: DG.render(cd.t.key, cd.data, { fill: fill, light: true }) });
+      setStatus('已送出下載。', false, 'dgm-status');
+    } catch (e) { if (!e || e.code !== 'declined') setStatus('下載失敗。', true, 'dgm-status'); }
+  };
   $('gen').onclick = generate;
   $('regen').onclick = generate;
   $('fix').onclick = fixIt;
@@ -402,6 +507,8 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
   };
 
   load();
+  buildToolSelect();
+  try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { drawDiagram(); }); new MutationObserver(function () { drawDiagram(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch (e) {}
   $('topic').value = st.topic || '';
   renderControls();
   renderPlan();
@@ -409,8 +516,8 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
   (async function () {
     try { sample = (window.claude && window.claude.use) ? await window.claude.use('sample') : null; } catch (e) { sample = null; }
     if (!sample) { $('gen').disabled = true; $('regen').disabled = true; setStatus('這個環境沒有 AI，請在 Claude 裡開啟這個頁面。', true); }
-    try { var d = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null; $('save').hidden = !d; } catch (e) {}
-    if (st.plan) updateChecks();
+    try { downloads = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null; $('save').hidden = !downloads; } catch (e) { downloads = null; }
+    if (st.plan) { updateChecks(); drawDiagram(); }
   })();
 })();
 </script>

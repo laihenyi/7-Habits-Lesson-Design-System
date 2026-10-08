@@ -1,7 +1,7 @@
 <title>七個習慣教案生成器</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;800&display=swap" rel="stylesheet">
 <style>
 /* 版面：上方三個選擇＋一個按鈕，下方是一張可直接編修的教案單，檢查條固定在頂端 */
 :root {
@@ -17,6 +17,8 @@
   --fail-soft: #F8E6E1;
   --ok: #3F7A3A;
   --ask: #2C5C85;
+  --d-paper: #F3F6F6; --d-box: #FFFFFF; --d-ink: #17262B; --d-muted: #4A5C61; --d-soft: #6F8186;
+  --d-rule: rgba(23,38,43,0.16); --d-accent: #0F5F5A; --d-tint: rgba(15,95,90,0.10); --d-fill: rgba(74,92,97,0.10);
   --font-display: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
   --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
 }
@@ -25,6 +27,8 @@
     --bg: #0F1A1D; --surface: #162428; --ink: #E6EEEF; --muted: #9DB0B4; --line: #2A3D42;
     --accent: #5FC4BB; --accent-ink: #0B1C1E; --accent-soft: #1C3A3B;
     --fail: #F08C74; --fail-soft: #3A2420; --ok: #8CC784; --ask: #7FB4E0;
+    --d-paper: #0F1A1D; --d-box: #162428; --d-ink: #E6EEEF; --d-muted: #A8BBBF; --d-soft: #82989C;
+    --d-rule: rgba(230,238,239,0.18); --d-accent: #5FC4BB; --d-tint: rgba(95,196,187,0.14); --d-fill: rgba(168,187,191,0.12);
     color-scheme: dark;
   }
 }
@@ -32,6 +36,8 @@
   --bg: #0F1A1D; --surface: #162428; --ink: #E6EEEF; --muted: #9DB0B4; --line: #2A3D42;
   --accent: #5FC4BB; --accent-ink: #0B1C1E; --accent-soft: #1C3A3B;
   --fail: #F08C74; --fail-soft: #3A2420; --ok: #8CC784; --ask: #7FB4E0;
+  --d-paper: #0F1A1D; --d-box: #162428; --d-ink: #E6EEEF; --d-muted: #A8BBBF; --d-soft: #82989C;
+  --d-rule: rgba(230,238,239,0.18); --d-accent: #5FC4BB; --d-tint: rgba(95,196,187,0.14); --d-fill: rgba(168,187,191,0.12);
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -93,6 +99,14 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
 .fail-note b { color: var(--fail); }
 .foot { padding: 16px 20px 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-top: 1px solid var(--line); }
 .empty { color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 28px 20px; text-align: center; }
+select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; }
+.dgm { overflow-x: auto; border-radius: 8px; background: var(--d-paper); }
+.dgm svg { display: block; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: 13px; background: transparent; color: var(--ink); border: 0; padding: 6px 14px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.hint { color: var(--muted); font-size: 13px; margin: 0; }
 @media (prefers-reduced-motion: no-preference) { .btn, .chip, .band, .v { transition: background .15s, border-color .15s; } }
 </style>
 
@@ -139,9 +153,18 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
     </section>
 
     <section class="step">
-      <div class="step-h"><span class="no">3</span><h3>應用</h3><p>一個工具、一句 if-then、一個回顧時間點。</p></div>
-      <div class="f"><label for="tool">工具</label><textarea id="tool" rows="1"></textarea></div>
+      <div class="step-h"><span class="no">3</span><h3>應用</h3><p>優先選用領導力工具，再接一句 if-then 和一個回顧時間點。</p></div>
+      <div class="f"><label for="toolSel">領導力工具</label><select id="toolSel"></select><input type="text" id="tool" maxlength="40" placeholder="其他工具名稱" hidden aria-label="其他工具名稱"></div>
       <div class="f"><label for="toolDesc">工具怎麼用</label><textarea id="toolDesc" rows="2"></textarea></div>
+      <div class="f"><span class="lbl">工具圖</span>
+        <div class="row">
+          <div class="seg" role="group" aria-label="圖的版本"><button type="button" id="vFill" aria-pressed="true">範例填寫</button><button type="button" id="vBlank" aria-pressed="false">空白學習單</button></div>
+          <button class="btn ghost small" id="redraw" type="button">重畫範例內容</button>
+          <button class="btn ghost small" id="svgSave" type="button" hidden>下載 SVG</button>
+        </div>
+        <div class="dgm" id="dgm"></div>
+        <p class="hint" id="dgm-status" role="status"></p>
+      </div>
       <div class="f"><label for="ifthen">if-then 句型</label><textarea id="ifthen" rows="2"></textarea></div>
       <div class="f"><label for="when">回顧時間點</label><textarea id="when" rows="1"></textarea></div>
       <div class="f"><label for="revisit">回顧時只問</label><textarea id="revisit" rows="2"></textarea></div>
@@ -159,6 +182,535 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
 
 <script type="application/json" id="habits-data">[{"no": 1, "name": "主動積極", "ex": [{"title": "下課的推擠與告狀", "grade": "國小中年級", "def": "主動積極是「在別人做了什麼、和我做出反應之間，有一個我可以自己選擇的空間」。", "judgments": [{"q": "老師還沒說完，他就衝去搬椅子", "v": "不是", "r": "動作快，但沒有選擇的成分"}, {"q": "被踩到腳，先看是不是故意的，才決定要不要生氣", "v": "是", "r": ""}, {"q": "看到有人被欺負，主動跑去跟其他人講這件事", "v": "不是", "r": "主動，但不是積極回應"}], "hear": "「他不是選的，他是直接反應。」 所以不是主動積極", "event": "「上禮拜有人在走廊撞到我，我的資料掉了一地。我當下直接說『你會不會走路啊！』——講完我就後悔了，因為他其實是被後面的人推的。我沒有用到那個空間。」", "ask": "「你有沒有哪一次，事情發生跟你反應中間，完全沒有空間？」然後等。", "out": "一則自己的事件，要說得出時間、地點、對方做了什麼、我當下做了什麼。", "tool": "停步思考圖", "ifthen": "「下次＿＿（那個常常讓我炸掉的人事物）出現，我會先＿＿（數三下／離開兩步／先問一句）。」", "revisit": "一週後只問一句「有人用到那個空間嗎」，不評分。"}, {"title": "群組截圖與被傳話", "grade": "國中", "def": "主動積極是「我為我的回應負責，而不是把責任交給刺激我的那個人」。", "judgments": [{"q": "他先傳我壞話的，我當然回嗆", "v": "不是", "r": "回應的決定權交出去了"}, {"q": "看到截圖很生氣，先把手機放下，隔天再處理", "v": "是", "r": ""}, {"q": "主動在群組裡幫朋友出頭", "v": "需要再問一句", "r": "是選的，還是被氣氛推的"}], "hear": "「差別在於我是不是自己決定的。」", "event": "「我曾經看到別人轉述我講過的話，被改得完全不是我的意思。我當晚打了很長一段訊息，打完沒送出去，隔天早上看，慶幸我沒送。但我那晚根本也沒睡好——所以這個暫停不是代表我不會痛，而是提醒自己，痛的時候還能不做決定。」", "ask": "「你打過但沒送出去的訊息，那個沒送出去的決定，是什麼幫你擋下來的？」", "out": "一則自己的事件 + 指出當時的刺激與回應分別是什麼。", "tool": "控制圈／關注圈", "ifthen": "「當我看到讓我馬上想回的訊息，我會先把它分到圈內或圈外，再決定要不要動。」", "revisit": "兩週後拿一則匿名的真實班級事件，全班一起區分內外圈。"}, {"title": "分組報告有人不做事", "grade": "高年級／國中", "def": "主動積極是「把力氣花在我能改變的事上，而不是花在抱怨我不能改變的事上」。", "judgments": [{"q": "一直提醒組員做，提醒了五次", "v": "不是", "r": "重複同一個無效動作，不是主動積極，是慣性"}, {"q": "認定他不會做了，自己默默全部扛完", "v": "不是", "r": "不是選擇，是放棄溝通"}, {"q": "直接找他確認：你能做到哪一段、什麼時候給我", "v": "是", "r": ""}], "hear": "「重點不是有沒有做事，是有沒有換方法。」", "event": "「我以前遇到不配合的合作對象，我的做法是自己做完，然後很生氣。生氣了三年才發現，我從來沒有跟對方講清楚我需要什麼。我一直把力量用在不對的地方。」", "ask": "「你有沒有哪件事，是你抱怨了很多次、但從來沒有真的開口處理過的？」", "out": "一則自己的事件 + 指出當時我實際做的與我其實可以做的各是什麼。", "tool": "控制圈 + 我訊息句型（銜接習慣五）", "ifthen": "「當我發現我在抱怨同一件事第三次，我會停下來問：這件事在圈內還是圈外？如果在圈內，我下一句話要說什麼。」", "revisit": "期末分組結束後，回頭看這張圈，哪些當初以為在圈外的其實在圈內。"}]}, {"no": 2, "name": "以終為始", "ex": [{"title": "這學期我想被怎麼形容", "grade": "國小中年級", "def": "以終為始是「開始做之前，先在腦袋裡看見做完的樣子」。", "judgments": [{"q": "每天照聯絡簿把功課寫完", "v": "不是", "r": "有照做，但沒有自己的終點"}, {"q": "開始畫海報前，先想好畫完要長什麼樣，再決定先畫哪裡", "v": "是", "r": ""}, {"q": "媽媽說這學期要考進前十名，我就開始讀", "v": "這題要停下來討論", "r": "那是誰的終點？"}], "hear": "「終點要是我自己看見的，不然只是照做。」", "event": "「我以前花了整個暑假把教室佈置得很漂亮，開學那天我超期待。結果一個學期下來，沒有人動過那面牆，因為那是我的教室，不是他們的。我從頭到尾沒想清楚我要的到底是漂亮的教室，還是他們覺得這裡是自己的地方。」", "ask": "「你有沒有做過一件很認真、做完卻覺得好像沒什麼意義的事？」然後等。", "out": "一則自己的事件，說得出我做了什麼、做完之後為什麼覺得空空的。", "tool": "終點描述法（一句話，不寫分數，只寫別人會怎麼形容我）", "ifthen": "「當我要開始一件要做很多天的事，我會先講出一句『做完的時候會怎樣』。」", "revisit": "期中一次、期末一次，把當初那句話拿出來對照，只問「有靠近嗎」，不打分。"}, {"title": "段考不是終點，是里程碑", "grade": "國中", "def": "以終為始是「先確定我要去哪裡，再決定路怎麼走；而不是先走了再說要去哪」。", "judgments": [{"q": "排了一張很完整的讀書計畫表，每天幾點讀什麼都寫好", "v": "不一定", "r": "要問：這張表是從哪個終點推回來的？"}, {"q": "這次目標是數學進步十分，所以我把時間重新分配，減少已經很穩的科目", "v": "是", "r": ""}, {"q": "大家都在讀，我也讀，讀到哪算哪", "v": "不是", "r": ""}], "hear": "「有計畫不等於以終為始，要看那張表是不是從終點倒推出來的。」", "event": "「我大學修過一門很硬的課，我從第一週就開始念，念得比誰都早。期末考完我拿到很低的分數，因為我從頭到尾在念我看得懂的那幾章，而考的是我一直跳過的那部分。我很努力，但我從來沒問過『考完的時候我應該會什麼』。」", "ask": "「你有沒有一次很努力、但努力錯地方的經驗？當時如果先問一個問題，可以省下多少時間？」", "out": "一則自己的事件 + 指出當時我的終點是什麼（通常會發現：沒有，或者是別人的）。", "tool": "兩次創造圖", "ifthen": "「當我準備開始讀一個科目，我會先問：考完我應該會什麼？答不出來就先去問清楚，不要先讀。」", "revisit": "段考後一週，回頭看心智創造那欄，區分「沒做到」和「終點本來就設錯」。"}, {"title": "分組報告先畫成品", "grade": "國中／高年級", "def": "以終為始是「所有東西都被創造兩次，先在腦中，再在實際世界」。", "judgments": [{"q": "分完組馬上開始分工，每個人回去找資料", "v": "不是", "r": "先動了才想要做什麼"}, {"q": "先討論出「我們希望台下聽完記得哪一件事」，再回頭決定要哪些資料", "v": "是", "r": ""}, {"q": "把去年學長姐的報告架構抄下來照著做", "v": "再問", "r": "那是他們的終點，還是我們的？"}], "hear": "「第一次創造沒做，第二次創造就會一直重做。」", "event": "「我辦過一場活動，場地先訂了，因為怕被搶走。後來才發現那個場地沒辦法分組、沒辦法移動桌椅，而我整個活動的核心就是分組討論。我為了配合已經訂好的場地，把活動改得面目全非。我是先做了，才想我要什麼。」", "ask": "「你們有沒有做過一份報告，做到一半整個打掉重來？那次是缺了什麼？」", "out": "一則自己的事件 + 指出當初如果先確定什麼，就不用重來。", "tool": "成品草圖", "ifthen": "「當我們要開始分工，我會先問一次：我們的成品長什麼樣？沒有共識就先不要分工。」", "revisit": "報告結束後，把當初的草圖跟實際成品並排，討論差在哪、為什麼。"}]}, {"no": 3, "name": "要事第一", "ex": [{"title": "回家先做哪一件", "grade": "國小中年級", "def": "要事第一是「先做最重要的那一件，不是先做最想做、或最快做完的那一件」。", "judgments": [{"q": "回家先把最簡單的三張學習單寫完，難的那份留到最後", "v": "不是", "r": "先做快的，不是先做重要的"}, {"q": "先花二十分鐘練明天要考的直笛，再去看電視", "v": "是", "r": ""}, {"q": "一整個晚上都在忙，忙到很累", "v": "不是", "r": "忙不等於把重要的做完"}], "hear": "「忙不是重點，順序才是。」", "event": "「有一次我要準備一份很重要的教學計畫，結果那天我把桌子整理得超乾淨，回了三十封信，還把書櫃重新排好。晚上十一點，計畫一個字都沒寫。我不是在偷懶，我一整天都在做事，只是都不是那一件。」", "ask": "「你有沒有哪一天很忙、可是最重要的那件事沒做完？」然後等。", "out": "一則自己的事件，說得出那天做了什麼、沒做完的是哪一件。", "tool": "大石頭先放", "ifthen": "「當我回到家坐下來，我會先講出今天的大石頭是哪一件，做完才碰想做的那些。」", "revisit": "一週後只問順序：「你的大石頭是第幾件做的？」不看有沒有全部做完。"}, {"title": "手機與段考週", "grade": "國中", "def": "要事第一是「重要的事排在緊急的事前面，而不是被急的事一路推著走」。", "judgments": [{"q": "訊息一來就回，回完再讀書，因為朋友在等", "v": "不是", "r": "急的事插隊，重要的事被切碎"}, {"q": "把手機放在別的房間，先讀完一個段落再拿回來", "v": "是", "r": ""}, {"q": "考前一天熬夜把全部讀完", "v": "再問", "r": "那是要事第一，還是拖到變緊急？"}], "hear": "「緊急的事會自己叫你，重要的事不會。」", "event": "「我有一份要交的東西，期限是兩個月後。我每天都覺得『還有時間』，然後每天都有更急的事。最後一個晚上我熬夜做完，品質很差。它從來不是不重要，只是它一直不緊急，直到它變得很緊急。」", "ask": "「你有沒有一件事，是拖到變緊急才做的？如果早兩週動，那天晚上你在做什麼？」", "out": "一則自己的事件 + 指出當時哪些事插了隊。", "tool": "時間四象限", "ifthen": "「當我拿起手機而該讀的還沒讀，我會先把手機放到看不到的地方，做完一個段落再拿。」", "revisit": "段考後一週，回頭看四格，哪些第二格的事最後變成了第一格。"}, {"title": "社團、比賽、作業撞期", "grade": "國中／高年級", "def": "要事第一是「對重要的事說好，就必須對某些事說不」。", "judgments": [{"q": "全部都答應，然後每一件都做一半", "v": "不是", "r": "沒有選擇，只是不敢拒絕"}, {"q": "跟社團說這兩週我只能到一次，因為比賽在下週", "v": "是", "r": ""}, {"q": "直接不出現，也不跟任何人講", "v": "不是", "r": "那不是說不，是消失"}], "hear": "「說不要說出口，而且要說得清楚。」", "event": "「有一個學期我答應了四件事，因為每一件我都不好意思拒絕。結果那學期我每一件都遲交、每一件都道歉。我以為答應是負責，後來才知道，什麼都答應才是最不負責的那一種。」", "ask": "「你有沒有答應過一件事，答應完就後悔？那時候你其實可以說什麼？」", "out": "一則自己的事件 + 指出當時答應了幾件、實際做得完幾件。", "tool": "承諾清單（這兩週我答應了什麼）", "ifthen": "「當有人再找我加一件事，我會先看清單，再回一句『這兩週我只能做到＿＿』。」", "revisit": "期末回頭看清單，哪一次說不讓後面的事變好做了。"}]}, {"no": 4, "name": "雙贏思維", "ex": [{"title": "只有一顆球", "grade": "國小中年級", "def": "雙贏思維是「我想要的事情，不需要用你的難過來換」。", "judgments": [{"q": "球我先拿到，所以整節下課都是我的", "v": "不是", "r": "我贏你輸"}, {"q": "算了，讓他玩，我坐在旁邊看", "v": "不是", "r": "我輸你贏，不是雙贏"}, {"q": "問他要不要一起玩，兩個人傳球", "v": "是", "r": ""}], "hear": "「讓給你不是雙贏，那只是換人不開心。」", "event": "「有兩個學生搶同一個位置，我當下用最快的方法解決：我說『你坐這裡，你坐那裡』。事情五秒就結束了，可是那兩個人整個下午都不講話。我贏了，因為我是老師；他們兩個都輸了。」", "ask": "「你有沒有一次吵完之後，雖然贏了，但心裡不太舒服？」然後等。", "out": "一則自己的事件，說得出當時誰贏了、誰輸了。", "tool": "情緒帳戶", "ifthen": "「當我很想要一個東西而別人也想要，我會先問一句『我們可以怎麼一起用』，再決定。」", "revisit": "一週後只問存款：「這週你幫誰的帳戶存了錢？」不點名誰在提款。"}, {"title": "分組時誰做哪一段", "grade": "國中", "def": "雙贏思維是「我把我要的講清楚，也去問清楚你要的，然後找對兩邊都成立的做法」。", "judgments": [{"q": "兩個人都不想做結論，最後抽籤決定", "v": "不是", "r": "誰都沒問對方為什麼不想做"}, {"q": "各讓一半：我做一半你做一半，誰都不太願意", "v": "再問", "r": "這是妥協還是雙贏？"}, {"q": "問完才知道他怕上台、我怕做簡報，於是換過來", "v": "是", "r": ""}], "hear": "「沒問過對方要什麼，就不可能找到雙贏。」", "event": "「我跟同事分工，我很怕被說偷懶，所以我提議每個人做一半。結果我做的那一半是我最不擅長的，她做的那一半她也不想碰。兩個人都很累，成果也不好。我以為公平就是平均，從來沒問她想做哪一段。」", "ask": "「你有沒有一次分工分得很平均、可是大家都不太滿意？那時候少問了什麼？」", "out": "一則自己的事件 + 指出我要的與對方要的分別是什麼。", "tool": "四種結果", "ifthen": "「當我們要分工，我會先問一輪『你想做哪一段、為什麼』，才開始分。」", "revisit": "報告結束後回頭標一次，這次落在哪一格。"}, {"title": "班服顏色投票之後", "grade": "國中／高年級", "def": "雙贏思維是「不接受只有兩個選項；先找第三種，找不到才回頭談條件」。", "judgments": [{"q": "投票，多數決，二十比十五，結束", "v": "不是", "r": "十五個人還在這個班上"}, {"q": "為了不吵架，改成兩邊都不喜歡的第三個顏色", "v": "不是", "r": "那是雙輸，不是第三種"}, {"q": "問清楚兩邊在意的是顏色還是圖案，最後用甲的顏色配乙的圖案", "v": "是", "r": ""}], "hear": "「第三種不是各讓一半，是一起想出來的。」", "event": "「班上為了一件事分成兩派，我請大家投票，多數決通過，我覺得我處理得很民主。可是那之後，輸的那一邊有半個學期不太願意在班會發言。我用制度贏了，但我沒有處理他們在意的東西。」", "ask": "「你有沒有一次投票輸了、事情也照做了，但你心裡並沒有同意？」", "out": "一則自己的事件 + 指出當時沒有被問到的是什麼。", "tool": "第三種方案三問", "ifthen": "「當班上只剩兩個選項在對立，我會先問一次：有沒有第三種我們都還沒想到的做法？」", "revisit": "期末回頭看這次的決定，投票輸的那一邊後來還願不願意提意見。"}]}, {"no": 5, "name": "知彼解己", "ex": [{"title": "同學說話我打斷了", "grade": "國小中年級", "def": "知彼解己是「先聽懂對方說什麼，再說我要說的」。", "judgments": [{"q": "他講話的時候我一直點頭，心裡在想等一下要說什麼", "v": "不是", "r": "有安靜，但沒有在聽"}, {"q": "他還沒講完，我就知道他要說什麼，直接接話", "v": "不是", "r": "我以為我懂了"}, {"q": "他說完，我用自己的話再講一次，問他「是這個意思嗎」", "v": "是", "r": ""}], "hear": "「安靜不等於聽懂。」", "event": "「有一位家長來找我，才講了兩句，我就覺得我知道她要說什麼，馬上開始解釋。她看著我，說了一句『我還沒講完』。後來我才知道，她要說的跟我以為的完全不同。我不是沒有聽，是我聽了開頭，就替她把結尾說完了。」", "ask": "「你有沒有一次被別人打斷，或你打斷了別人？後來發現他要說的是什麼？」然後等。", "out": "一則自己的事件，說得出我以為對方要說什麼、實際上是什麼。", "tool": "複述三步", "ifthen": "「當有人跟我說話而我很想插嘴，我會先等他說完，再講一句『你是說……』。」", "revisit": "一週後只問一句：「你用『你是說』的時候，對方有說『對』嗎？」不評分。"}, {"title": "好友突然不理我", "grade": "國中", "def": "知彼解己是「用對方的眼睛看事情，聽他的話也聽他的感覺」。", "judgments": [{"q": "他一說完，我立刻說「沒事啦，不要想太多」", "v": "不是", "r": "急著安慰，把他的感覺蓋掉"}, {"q": "他一開口，我就開始想是不是我做錯了什麼", "v": "不是", "r": "注意力在我自己身上"}, {"q": "先說「聽起來你很不舒服」，再問發生了什麼事", "v": "是", "r": ""}], "hear": "「安慰得太快，等於沒有聽他說。」", "event": "「一位朋友跟我說她工作很累。我馬上給了她五個解決方法，講得很有條理。她聽完說了一句『謝謝』，然後就沒再提。後來我才明白，她那天要的不是方法，是有人聽她說完。我給了很多，可是沒有一句是在回應她。」", "ask": "「你有沒有一次跟人說心事，對方一直給建議，你反而更不想說了？」", "out": "一則自己的事件 + 指出當時我想要的回應是什麼。", "tool": "四種回應", "ifthen": "「當朋友跟我說他不開心，我會先說出我聽到的感覺，再決定要不要問或給建議。」", "revisit": "兩週後隨機抽一段日常對話，全班一起標它落在哪一格。"}, {"title": "和家長或老師意見不同", "grade": "國中／高年級", "def": "知彼解己是「先讓對方確認我聽懂了，才輪到我表達我的想法」。", "judgments": [{"q": "他講到一半，我已經想好反駁的話，等他停就開口", "v": "不是", "r": "聽是為了回嘴"}, {"q": "他說什麼我都說「好」，然後照自己的想法做", "v": "不是", "r": "沒有聽，也沒有講"}, {"q": "先說出我理解的他的擔心，他說對，我再說我的想法", "v": "是", "r": ""}], "hear": "「對方說『對』之前，還不輪到我。」", "event": "「我剛任教時，跟主任對一個規定意見不同。我準備了很完整的理由，一進辦公室就開始講。講完他只說『我知道了』，之後什麼都沒改。多年後我才想到，我從頭到尾沒問過他為什麼要這樣訂。我以為他不聽我，其實是我沒讓他覺得被聽見。」", "ask": "「你有沒有一次很努力說明自己的想法，可是對方完全沒被說服？當時你有問過他在意什麼嗎？」", "out": "一則自己的事件 + 指出當時我沒問、但可以問的一句話。", "tool": "先聽後說四步", "ifthen": "「當我想說服別人，我會先說出他在意的事，等他說『對』，再講我的想法。」", "revisit": "一個月後回頭看那次對話，對方的態度和第一次比起來有什麼不同。"}]}, {"no": 6, "name": "統合綜效", "ex": [{"title": "兩個人畫一張海報", "grade": "國小中年級", "def": "統合綜效是「兩個人合作的結果，比各自做完再拼起來更好」。", "judgments": [{"q": "他畫左邊，我畫右邊，最後貼在一起", "v": "不是", "r": "各做各的，只是一加一"}, {"q": "他說怎麼畫我就怎麼畫，我沒有意見", "v": "不是", "r": "只有一個人的想法"}, {"q": "他想畫太空，我想畫海洋，我們一起想出「海底太空站」", "v": "是", "r": ""}], "hear": "「綜效是做出誰一個人都想不到的東西。」", "event": "「我跟一位同事合開一門課。我把我的教案排得很完整，她提了一個不一樣的做法，我第一反應是：這會打亂我的進度。我沒接。那學期課上得很順，也很平。後來看她自己班的課，比我的多了一個我完全沒想到的環節。」", "ask": "「你有沒有一次跟別人一起做東西，做出來的比你自己想的還好？」然後等。", "out": "一則自己的事件，說得出哪一部分是對方想出來的。", "tool": "我的點子＋你的點子＝？", "ifthen": "「當我們的想法不一樣，我會先問：把我們兩個的合起來，可以變成什麼？」", "revisit": "一週後只問：「做出來的東西，有哪一部分是你一個人想不到的？」不評好壞。"}, {"title": "組員個性很不一樣", "grade": "國中", "def": "統合綜效是「把每個人不一樣的地方，當成材料，而不是麻煩」。", "judgments": [{"q": "大家想法都一樣，很快就做完了", "v": "再問", "r": "一樣是好事，還是沒有人提出不同的想法？"}, {"q": "他太慢、他太急，所以分開做最快", "v": "不是", "r": "把差異當成麻煩處理掉"}, {"q": "他想很多、我動作快，於是他負責規劃、我負責先做出草稿讓他改", "v": "是", "r": ""}], "hear": "「跟你一樣的人，只能幫你做更多你已經會的。」", "event": "「我以前選共事的夥伴，都選跟我想法像的人，因為溝通最省力。那幾年我們效率很高，可是有一次出了大問題，事後才發現我們全部漏掉同一件事，因為我們看事情的方式太像了。沒有人在會議裡說一句『可是如果……』。」", "ask": "「你有沒有一次因為某個跟你很不一樣的人，事情反而變得比較好？」", "out": "一則自己的事件 + 指出對方哪一點跟我不一樣、那一點幫上了什麼。", "tool": "長處與缺口對照", "ifthen": "「當我覺得某個組員很難搭配，我會先找他有、而我缺的那一項。」", "revisit": "報告結束後，回頭看配對：哪一組配對真的補上了缺口。"}, {"title": "班級活動意見兩極", "grade": "國中／高年級", "def": "統合綜效是「當意見對立，不是選一邊，也不是折衷，而是找到比兩邊都更好的做法」。", "judgments": [{"q": "一半的人想辦園遊會，一半想看電影，那就上午園遊會、下午電影", "v": "再問", "r": "是折衷，還是有新的東西？"}, {"q": "兩邊吵不出結果，老師決定", "v": "不是", "r": "把問題丟給更大的權力"}, {"q": "問出想辦園遊會是想有互動、想看電影是想放鬆，於是辦「電影攤位」", "v": "是", "r": ""}], "hear": "「折衷是一人一半，綜效是兩邊要的都拿到。」", "event": "「兩位同事對一個活動的做法意見相反，我夾在中間，提議各取一半。兩邊都同意了，也都不太開心。活動辦完，沒有人覺得那是自己的活動。我以為我在調解，其實我是在切蛋糕，我沒有問過他們各自到底想要保住什麼。」", "ask": "「你有沒有一次大家各退一步，結果每個人都覺得少了一點什麼？」", "out": "一則自己的事件 + 指出每一方各自少掉的是什麼。", "tool": "對立變合作四步", "ifthen": "「當意見分成兩邊，我會先問每一邊：你最想保住的是什麼？再一起想新的做法。」", "revisit": "活動結束後，兩邊各說一次：我最在意的那件事，有沒有被保住。"}]}, {"no": 7, "name": "不斷更新", "ex": [{"title": "睡不夠的一週", "grade": "國小中年級", "def": "不斷更新是「照顧自己的身體、心情、腦袋和人際，讓自己一直有力氣」。", "judgments": [{"q": "功課寫完就躺在沙發上滑平板到很晚", "v": "不是", "r": "有停下來，但沒有補到電"}, {"q": "今天很累，所以我今天什麼都不想做", "v": "再問", "r": "是需要休息，還是在逃避？"}, {"q": "今天有點累，所以我提早洗澡、十點上床", "v": "是", "r": ""}], "hear": "「停下來不等於補到電。」", "event": "「開學前兩週，我每天只睡五個小時，覺得我可以撐過去。第二週的星期三，我在班上對一個學生大聲說話，那不是我平常會有的語氣。下課後我很懊悔。我不是不會處理，是我已經沒有力氣處理了。」", "ask": "「你有沒有一次因為太累，對別人的態度變得不像平常的你？」然後等。", "out": "一則自己的事件，說得出當時累在哪裡、說了或做了什麼。", "tool": "四個電池", "ifthen": "「當我覺得很累或很煩，我會先看四個電池，找出最低的那一個，做一件小事把它補起來。」", "revisit": "一週後只問一句：「這週你補了哪一個電池？」不問補得好不好。"}, {"title": "讀了很久卻沒進步", "grade": "國中", "def": "不斷更新是「花時間把鋸子磨利，之後鋸得比較快」。", "judgments": [{"q": "連續讀了四個小時，中間沒有休息，第三個小時後其實都沒進去", "v": "不是", "r": "一直鋸，鋸子已經鈍了"}, {"q": "花二十分鐘整理錯題，發現自己老是錯同一種題型", "v": "是", "r": ""}, {"q": "看讀書方法的影片看了一個下午，沒有真的讀", "v": "再問", "r": "是在磨鋸子，還是在逃避鋸木頭？"}], "hear": "「鈍了的鋸子，越用力越慢。」", "event": "「我教書的頭幾年，用的是同一套教法，每年只是更努力地做。第五年我發現，學生的反應跟第一年沒有差別，可是我比第一年累很多。我一直在鋸，從來沒有停下來看過鋸子。」", "ask": "「你有沒有一件事，花了很多時間，可是覺得自己好像原地踏步？」", "out": "一則自己的事件 + 指出當時如果停下來檢查一次，可以檢查什麼。", "tool": "每週磨刀四問", "ifthen": "「當我讀了很久卻沒進步，我會先停下來檢查方法，再決定要不要繼續。」", "revisit": "四週後回頭看：那四件「改變的一件事」，哪一件真的有用。"}, {"title": "連續衝刺之後撐不住", "grade": "國中／高年級", "def": "不斷更新是「把休息和補充排進計畫，不是等到撐不住才停」。", "judgments": [{"q": "考完試連續三天什麼都不做，然後又回到原來的狀態", "v": "再問", "r": "是補電，還是只是放空？"}, {"q": "衝刺前就先排好每天的睡眠和一段運動時間", "v": "是", "r": ""}, {"q": "覺得自己還撐得住，所以繼續熬夜，等真的生病再休息", "v": "不是", "r": "不是拚，是預支"}], "hear": "「休息要先排進去，不是剩下的才給它。」", "event": "「有一個學期，我連續兩個多月每天工作到十一點，我告訴自己等這波結束再休息。結束那天，我整整病了一週，那一週的進度比忙的時候還落後。我把休息當成獎勵，可是我從來沒有真的給過自己。」", "ask": "「你有沒有一次拚到最後，反而因為撐不住而沒能把事情做完？」", "out": "一則自己的事件 + 指出撐不住之前，身體或情緒先出現的訊號。", "tool": "衝刺前的補電計畫", "ifthen": "「當我要開始一段要拚的日子，我會先把睡覺和運動的時間寫進計畫，再排其他的事。」", "revisit": "下一次衝刺結束後，對照這次：撐不住的訊號有沒有比上次晚出現。"}]}, {"no": 8, "name": "找到內心的聲音", "ex": [{"title": "我很會的一件事", "grade": "國小中年級", "def": "找到內心的聲音是「知道自己擅長什麼、在意什麼，並且願意用它去幫別人」。", "judgments": [{"q": "我很會玩遊戲，可是我只想自己玩", "v": "再問", "r": "這件事能不能也幫到別人？"}, {"q": "大家都說我畫圖很好，所以我就畫，其實我不太喜歡", "v": "不是", "r": "別人說的，不是我在意的"}, {"q": "我喜歡畫圖，所以幫班上畫了值日生輪流表", "v": "是", "r": ""}], "hear": "「聲音是我在意的事，不是別人誇我的事。」", "event": "「我剛任教時，大家都說我很會做行政，所以學校的雜事都交給我。我做得很好，也一直做，做到第四年，我才發現我根本不喜歡。我很會做的，不一定是我在意的。」", "ask": "「你有沒有一件事，別人都說你很會，可是你自己其實不太喜歡？」然後等。", "out": "一則自己的事件，說得出別人說我會什麼、我自己真正喜歡什麼。", "tool": "我的三個圈", "ifthen": "「當班上缺一件我做得來、也喜歡的事，我會舉手說：這個我可以試試看。」", "revisit": "兩週後只問一句：「你用你的聲音幫班上做了什麼？」不比較誰做得多。"}, {"title": "班會上不敢舉手", "grade": "國中", "def": "找到內心的聲音是「把我真正想說的說出來，即使不是最多人同意的那一個」。", "judgments": [{"q": "看大家怎麼說，我就跟著舉手", "v": "不是", "r": "跟著走，不是自己的想法"}, {"q": "我有想法，但怕被笑，所以沒講", "v": "再問", "r": "是沒有想法，還是有想法不敢說？"}, {"q": "我不確定對不對，但先說：「我的想法是……，可能還不完整」", "v": "是", "r": ""}], "hear": "「沒說出口的想法，別人聽不見。」", "event": "「有一次開會，我對一個決議有不同的看法，可是我想等自己把理由整理得更完整再說。等我準備好，決議已經通過了。後來有同事跟我說，他其實也有一樣的擔心，只是也在等別人先開口。」", "ask": "「你有沒有一次心裡有話，最後沒說，後來有人說出來了？」", "out": "一則自己的事件 + 指出當時攔住我的是什麼。", "tool": "想法與行動對照", "ifthen": "「當我有想法卻不敢說，我會先用一句『我的想法是……，可能還不完整』開頭。」", "revisit": "兩週後回頭標一次，這次的位置往右上角移了多少。"}, {"title": "帶學弟妹做專題", "grade": "國中／高年級", "def": "激勵別人找到聲音是「不替他做決定，而是問對問題，讓他自己說出來」。", "judgments": [{"q": "他做得慢，我直接接手，很快就做完了", "v": "不是", "r": "替他做，他的聲音沒出現"}, {"q": "我告訴他該怎麼做，他照做了", "v": "再問", "r": "是他自己的想法，還是我的？"}, {"q": "問他「你覺得這一段想傳達什麼」，等他自己回答", "v": "是", "r": ""}], "hear": "「好的帶領，是讓他說得比你多。」", "event": "「我帶一位新老師，他的教案有個地方我覺得不對，我直接幫他改好，還很有效率地教他為什麼。他每次都說謝謝，可是到學期結束，他還是不敢自己決定。我以為我在幫他，其實是我把他的位置佔掉了。」", "ask": "「你有沒有被別人『幫忙』到，最後反而覺得那件事不是你的了？」", "out": "一則自己的事件 + 指出當時如果對方問我一句，我會說什麼。", "tool": "帶領三步", "ifthen": "「當我很想直接告訴他答案，我會先問一個問題，等他說完，再補一句我的看法。」", "revisit": "專題結束後，請學弟妹自己說：這份專題哪一部分是他決定的。"}]}]</script>
 <script>
+/* 領導力工具圖：依 diagram-design 的規範繪製 14 種工具。
+   規範重點：單檔內嵌 SVG、4px 格線、直角圓角連接線（r=8）、標籤遮罩留白、
+   focal 強調色最多 2 處、無陰影、中文字級不低於 12px、SVG 具 title/desc 的無障礙結構。 */
+var DG = (function () {
+  var SANS = "'Geist','Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif";
+  var MONO = "'Geist Mono',ui-monospace,monospace";
+  var LIGHT = {
+    paper: '#F3F6F6', box: '#FFFFFF', ink: '#17262B', muted: '#4A5C61', soft: '#6F8186',
+    rule: 'rgba(23,38,43,0.16)', accent: '#0F5F5A', tint: 'rgba(15,95,90,0.10)', fill: 'rgba(74,92,97,0.10)'
+  };
+  var seq = 0;
+
+  function pal() {
+    try {
+      var cs = getComputedStyle(document.documentElement), o = {};
+      Object.keys(LIGHT).forEach(function (k) { var v = cs.getPropertyValue('--d-' + k).trim(); o[k] = v || LIGHT[k]; });
+      return o;
+    } catch (e) { return LIGHT; }
+  }
+  function g(n) { return Math.round(n / 4) * 4; }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function cw(c, fs) { var k = c.charCodeAt(0); return (k >= 0x2E80 || (k >= 0xFF00 && k <= 0xFFEF)) ? fs : fs * 0.6; }
+  function tw(s, fs) { var w = 0; for (var i = 0; i < s.length; i++) w += cw(s[i], fs); return w; }
+  function wrap(s, maxW, fs, maxL) {
+    var lines = [], cur = '', w = 0;
+    for (var i = 0; i < s.length; i++) {
+      var a = cw(s[i], fs);
+      if (w + a > maxW && cur) { lines.push(cur); cur = ''; w = 0; }
+      cur += s[i]; w += a;
+    }
+    if (cur) lines.push(cur);
+    if (lines.length > maxL) { lines = lines.slice(0, maxL); lines[maxL - 1] = lines[maxL - 1].slice(0, -1) + '…'; }
+    return lines;
+  }
+
+  // ---- primitives -------------------------------------------------------
+  function text(c, x, y, s, o) {
+    o = o || {};
+    c.o.push('<text x="' + x + '" y="' + y + '" fill="' + (o.fill || c.p.ink) + '" font-size="' + (o.fs || 12) +
+      '" font-weight="' + (o.w || 500) + '" font-family="' + (o.mono ? MONO : SANS) + '" text-anchor="' + (o.anchor || 'start') + '">' + esc(s) + '</text>');
+  }
+  function slot(c, x, y, w, s, o) {
+    o = o || {};
+    var fs = o.fs || 12, lh = o.lh || 18, maxL = o.maxL || 2, anchor = o.anchor || 'start';
+    var ax = anchor === 'middle' ? x + w / 2 : x;
+    if (c.fill && s) {
+      var ls = wrap(s, w, fs, maxL);
+      if (o.h) y += Math.max(0, Math.floor((o.h - ls.length * lh) / 2));
+      ls.forEach(function (l, i) { text(c, ax, y + fs + i * lh, l, { fs: fs, w: o.w || 400, fill: o.fill, anchor: anchor }); });
+      return ls.length * lh;
+    }
+    if (!c.fill) {
+      var n = o.blankL || Math.min(maxL, 2);
+      for (var i = 0; i < n; i++) {
+        var ly = y + fs + 3 + i * lh, x1 = anchor === 'middle' ? x + 4 : x, x2 = anchor === 'middle' ? x + w - 4 : x + w;
+        c.o.push('<line x1="' + x1 + '" y1="' + ly + '" x2="' + x2 + '" y2="' + ly + '" stroke="' + c.p.soft + '" stroke-opacity="0.5" stroke-width="0.8"/>');
+      }
+      return n * lh;
+    }
+    return lh;
+  }
+  function box(c, x, y, w, h, o) {
+    o = o || {};
+    var k = o.kind || 'plain', rx = o.rx == null ? 6 : o.rx, p = c.p;
+    var fill = k === 'focal' ? p.tint : k === 'soft' ? p.fill : p.box;
+    var stroke = k === 'focal' ? p.accent : k === 'soft' ? p.muted : p.ink;
+    c.o.push('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + rx + '" fill="' + p.paper + '"/>');
+    c.o.push('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + rx + '" fill="' + fill + '" stroke="' + stroke +
+      '" stroke-width="1"' + (k === 'dash' ? ' stroke-dasharray="4,3" stroke-opacity="0.6"' : '') + '/>');
+  }
+  function path(c, d, o) {
+    o = o || {};
+    c.o.push('<path d="' + d + '" fill="none" stroke="' + (o.accent ? c.p.accent : c.p.muted) + '" stroke-width="' + (o.accent ? 1.4 : 1) + '"' +
+      (o.dash ? ' stroke-dasharray="5,4"' : '') + (o.noArrow ? '' : ' marker-end="url(#' + c.id + (o.accent ? '-aa' : '-a') + ')"') + '/>');
+  }
+  function line(c, x1, y1, x2, y2, o) {
+    o = o || {};
+    c.o.push('<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + (o.stroke || c.p.rule) + '" stroke-width="' + (o.sw || 0.8) + '"' + (o.dash ? ' stroke-dasharray="' + o.dash + '"' : '') + '/>');
+  }
+  // 水平—垂直—水平的直角圓角連接線
+  function elbowH(c, x1, y1, x2, y2, xm, o) {
+    if (y1 === y2) return path(c, 'M' + x1 + ' ' + y1 + ' H' + x2, o);
+    var r = Math.min(8, Math.abs(y2 - y1) / 2), v = y2 > y1 ? 1 : -1, h = x2 > x1 ? 1 : -1;
+    path(c, 'M' + x1 + ' ' + y1 + ' H' + (xm - h * r) + ' Q' + xm + ' ' + y1 + ' ' + xm + ' ' + (y1 + v * r) +
+      ' V' + (y2 - v * r) + ' Q' + xm + ' ' + y2 + ' ' + (xm + h * r) + ' ' + y2 + ' H' + x2, o);
+  }
+  // 垂直—水平—垂直（由下往上）
+  function elbowV(c, x1, y1, x2, y2, ym, o) {
+    if (x1 === x2) return path(c, 'M' + x1 + ' ' + y1 + ' V' + y2, o);
+    var r = Math.min(8, Math.abs(x2 - x1) / 2), h = x2 > x1 ? 1 : -1, v = y2 < y1 ? -1 : 1;
+    path(c, 'M' + x1 + ' ' + y1 + ' V' + (ym - v * r) + ' Q' + x1 + ' ' + ym + ' ' + (x1 + h * r) + ' ' + ym +
+      ' H' + (x2 - h * r) + ' Q' + x2 + ' ' + ym + ' ' + x2 + ' ' + (ym + v * r) + ' V' + y2, o);
+  }
+  function title(c, name) { text(c, 36, 28, name, { fs: 14, w: 600 }); }
+  function legend(c, y, items, W) {
+    line(c, 36, y - 12, W - 36, y - 12);
+    var x = 36;
+    items.forEach(function (it) {
+      if (it.k === 'focal') c.o.push('<rect x="' + x + '" y="' + (y - 8) + '" width="16" height="12" rx="2" fill="' + c.p.tint + '" stroke="' + c.p.accent + '"/>');
+      else if (it.k === 'plain') c.o.push('<rect x="' + x + '" y="' + (y - 8) + '" width="16" height="12" rx="2" fill="' + c.p.box + '" stroke="' + c.p.ink + '"/>');
+      else if (it.k === 'dash') c.o.push('<line x1="' + x + '" y1="' + (y - 2) + '" x2="' + (x + 16) + '" y2="' + (y - 2) + '" stroke="' + c.p.muted + '" stroke-width="1.4" stroke-dasharray="4,3"/>');
+      else c.o.push('<line x1="' + x + '" y1="' + (y - 2) + '" x2="' + (x + 16) + '" y2="' + (y - 2) + '" stroke="' + (it.k === 'acc' ? c.p.accent : c.p.ink) + '" stroke-width="2"/>');
+      text(c, x + 24, y + 2, it.t, { fill: c.p.muted, fs: 12 });
+      x += 24 + tw(it.t, 12) + 28;
+    });
+  }
+  function pad(arr, n) { var a = (arr || []).slice(0, n); while (a.length < n) a.push(''); return a; }
+  function nice(max) {
+    if (!(max > 0)) return 4;
+    var exp = Math.pow(10, Math.floor(Math.log(max / 4) / Math.LN10)), f = max / 4 / exp;
+    var step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * exp;
+    return step * 4;
+  }
+
+  // ---- renderers --------------------------------------------------------
+  var R = {};
+
+  R.priority = function (c, d) {
+    var items = c.fill ? d.items : pad([], 5).map(function () { return { t: '', p: '' }; });
+    var n = items.length, y0 = 72, rh = 48, W = 720, H = y0 + n * rh + 68;
+    title(c, '優先順序表');
+    text(c, 36, 60, '順序', { fill: c.p.soft }); text(c, 84, 60, '等級', { fill: c.p.soft }); text(c, 140, 60, '要做的事', { fill: c.p.soft });
+    var focal = 0;
+    items.forEach(function (it, i) {
+      var y = y0 + i * rh;
+      line(c, 36, y, W - 36, y);
+      text(c, 48, y + 29, String(i + 1), { mono: true, fs: 12, fill: c.p.muted, anchor: 'middle' });
+      var f = c.fill && it.p === 'A' && focal < 2; if (f) focal++;
+      box(c, 84, y + 10, 36, 28, { kind: f ? 'focal' : 'plain', rx: 4 });
+      if (c.fill && it.p) text(c, 102, y + 29, it.p, { mono: true, w: 600, fill: f ? c.p.accent : c.p.ink, anchor: 'middle' });
+      slot(c, 140, y, 520, it.t, { maxL: 1, blankL: 1, h: rh });
+    });
+    line(c, 36, y0 + n * rh, W - 36, y0 + n * rh);
+    legend(c, H - 20, [{ k: 'focal', t: 'A 最重要、非做不可' }, { k: 'plain', t: 'B 有點重要　C 不太重要' }], W);
+    return { w: W, h: H, desc: '優先順序表，把要做的事標上 A、B、C 並排出順序' };
+  };
+
+  R.lotus = function (c, d) {
+    var W = 720, cw_ = 208, ch = 72, gap = 12, x0 = 36, y0 = 56, H = 332;
+    title(c, '蓮花圖');
+    var cells = c.fill ? d.petals : pad([], 8);
+    var map = [0, 1, 2, 3, -1, 4, 5, 6, 7];
+    map.forEach(function (m, i) {
+      var x = x0 + (i % 3) * (cw_ + gap), y = y0 + Math.floor(i / 3) * (ch + gap), center = m < 0;
+      box(c, x, y, cw_, ch, { kind: center ? 'focal' : 'plain' });
+      text(c, x + 12, y + 18, center ? '主題' : '概念 ' + (m + 1), { fs: 12, fill: center ? c.p.accent : c.p.soft, w: 600 });
+      slot(c, x + 12, y + 26, cw_ - 24, center ? (c.fill ? d.center : '') : cells[m], { maxL: 2, blankL: 1, fill: c.p.ink });
+    });
+    return { w: W, h: H, desc: '蓮花圖，中間是主題，周圍八格是相關概念' };
+  };
+
+  R.goalplan = function (c, d) {
+    var W = 720, acts = c.fill ? d.actions : pad([], 4), n = acts.length;
+    var gw = 320, gh = 64, gx = (W - gw) / 2, gy = 56, by = gy + gh + 32, ay = by + 32, aw = 148, ah = 88, gapx = 24;
+    var total = n * aw + (n - 1) * gapx, ax0 = g((W - total) / 2), H = ay + ah + 36;
+    title(c, '目標計畫表');
+    var cx = gx + gw / 2, first = ax0 + aw / 2, last = ax0 + (n - 1) * (aw + gapx) + aw / 2;
+    path(c, 'M' + cx + ' ' + (gy + gh) + ' V' + by, { noArrow: true });
+    if (n > 1) path(c, 'M' + first + ' ' + by + ' H' + last, { noArrow: true });
+    for (var i = 0; i < n; i++) path(c, 'M' + (ax0 + i * (aw + gapx) + aw / 2) + ' ' + by + ' V' + ay);
+    box(c, gx, gy, gw, gh, { kind: 'focal' });
+    text(c, gx + 12, gy + 18, '目標', { fill: c.p.accent, w: 600 });
+    slot(c, gx + 12, gy + 26, gw - 24, c.fill ? d.goal : '', { maxL: 2, blankL: 1, w: 600 });
+    acts.forEach(function (a, i) {
+      var ax = ax0 + i * (aw + gapx);
+      box(c, ax, ay, aw, ah, {});
+      text(c, ax + 12, ay + 18, '行動 ' + (i + 1), { fill: c.p.soft, w: 600 });
+      slot(c, ax + 12, ay + 26, aw - 24, a, { maxL: 3, blankL: 2 });
+    });
+    return { w: W, h: H, desc: '目標計畫表，上方是清楚的目標，下方是達成目標要做的行動' };
+  };
+
+  R.gantt = function (c, d) {
+    var W = 720, T = c.fill ? d.total : 8, tasks = c.fill ? d.tasks : pad([], 5).map(function () { return null; });
+    var x0 = 208, pitch = Math.floor(476 / T / 4) * 4, y0 = 84, rh = 44, n = tasks.length, H = y0 + n * rh + 68;
+    title(c, '甘特圖');
+    text(c, 36, 64, '工作事項（單位：' + (c.fill ? d.unit : '週') + '）', { fill: c.p.soft });
+    for (var i = 0; i < T; i++) {
+      text(c, x0 + i * pitch + pitch / 2, 64, String(i + 1), { mono: true, fill: c.p.soft, anchor: 'middle' });
+      line(c, x0 + i * pitch, 72, x0 + i * pitch, y0 + n * rh);
+    }
+    line(c, x0 + T * pitch, 72, x0 + T * pitch, y0 + n * rh);
+    line(c, 36, 76, x0 + T * pitch, 76, { stroke: c.p.soft });
+    var best = -1, bl = 0;
+    if (c.fill) tasks.forEach(function (t, i) { if (t.e - t.s + 1 > bl) { bl = t.e - t.s + 1; best = i; } });
+    tasks.forEach(function (t, i) {
+      var y = y0 + i * rh;
+      line(c, 36, y + rh, x0 + T * pitch, y + rh);
+      slot(c, 36, y, 160, t ? t.t : '', { maxL: 2, blankL: 1, w: 600, h: rh });
+      if (t) {
+        var f = i === best, bx = x0 + (t.s - 1) * pitch, bw = (t.e - t.s + 1) * pitch;
+        c.o.push('<rect x="' + bx + '" y="' + (y + 10) + '" width="' + bw + '" height="24" rx="4" fill="' + (f ? c.p.tint : c.p.fill) + '" stroke="' + (f ? c.p.accent : c.p.muted) + '" stroke-width="1"/>');
+      }
+    });
+    legend(c, H - 20, [{ k: 'focal', t: '花最久的工作' }, { k: 'plain', t: '其他工作' }], W);
+    return { w: W, h: H, desc: '甘特圖，顯示每個工作事項從哪個時間開始、到哪個時間結束' };
+  };
+
+  R.stopthink = function (c, d) {
+    var W = 720, cy = 176, H = 336, opts = c.fill ? d.options : ['', '', ''], ch = c.fill ? d.choice : 1;
+    var sx = 36, sw = 148, sh = 120, ox = 272, ow = 176, oh = 56, rx = 536, rw = 148;
+    var oy = [cy - 84, cy, cy + 84], ay = [cy - 32, cy, cy + 32];
+    title(c, '停步思考圖');
+    // 區域框：刺激與反應之間的空間
+    c.o.push('<rect x="256" y="52" width="208" height="248" rx="8" fill="' + c.p.paper + '"/>');
+    c.o.push('<rect x="256" y="52" width="208" height="248" rx="8" fill="none" stroke="' + c.p.rule.replace(/[\d.]+\)$/, '0.4)') + '" stroke-width="1" stroke-dasharray="4,3"/>');
+    for (var i = 0; i < 3; i++) elbowH(c, sx + sw, ay[i], ox, oy[i], 228);
+    if (c.fill) {
+      if (oy[ch] === cy) path(c, 'M' + (ox + ow) + ' ' + cy + ' H' + rx);
+      else elbowH(c, ox + ow, oy[ch], rx, cy, 492);
+    } else {
+      for (var j = 0; j < 3; j++) elbowH(c, ox + ow, oy[j], rx, ay[j], 492, { dash: true });
+    }
+    box(c, sx, cy - sh / 2, sw, sh, {});
+    text(c, sx + 12, cy - sh / 2 + 20, '刺激', { fill: c.p.soft, w: 600 });
+    slot(c, sx + 12, cy - sh / 2 + 28, sw - 24, c.fill ? d.stimulus : '', { maxL: 4, blankL: 3 });
+    opts.forEach(function (o, i) {
+      var f = c.fill && i === ch;
+      box(c, ox, oy[i] - oh / 2, ow, oh, { kind: f ? 'focal' : 'plain' });
+      slot(c, ox + 8, oy[i] - oh / 2, ow - 16, o, { maxL: 2, blankL: 2, h: oh, w: f ? 600 : 400 });
+    });
+    // 區域標籤遮罩（置於區域框上緣，標籤與框線保持間距）
+    var lab = '刺激與反應之間的空間', lw = g(tw(lab, 12) + 16);
+    c.o.push('<rect x="' + (360 - lw / 2) + '" y="44" width="' + lw + '" height="16" rx="2" fill="' + c.p.paper + '"/>');
+    text(c, 360, 56, lab, { fill: c.p.muted, anchor: 'middle' });
+    box(c, rx, cy - sh / 2, rw, sh, { kind: 'focal' });
+    text(c, rx + 12, cy - sh / 2 + 20, '我選的回應', { fill: c.p.accent, w: 600 });
+    slot(c, rx + 12, cy - sh / 2 + 28, rw - 24, c.fill ? opts[ch] : '', { maxL: 4, blankL: 3 });
+    return { w: W, h: H, desc: '停步思考圖，從刺激出發，在三種可能的反應中選出最適當的回應' };
+  };
+
+  R.proscons = function (c, d) {
+    var W = 720, P = c.fill ? d.pros : [], C = c.fill ? d.cons : [], n = Math.max(P.length, C.length, c.fill ? 3 : 4);
+    var y0 = 112, H = y0 + n * 60 + 24;
+    title(c, '優缺點分析圖');
+    box(c, 36, 56, 312, 44, {});
+    text(c, 192, 83, '做得好、進行順利的', { w: 600, anchor: 'middle' });
+    box(c, 372, 56, 312, 44, { kind: 'focal' });
+    text(c, 528, 83, '需要改進的', { w: 600, anchor: 'middle', fill: c.p.accent });
+    for (var i = 0; i < n; i++) {
+      var y = y0 + i * 60;
+      box(c, 36, y, 312, 52, { kind: 'soft', rx: 6 });
+      slot(c, 48, y, 288, P[i] || '', { maxL: 2, blankL: 2, h: 52 });
+      box(c, 372, y, 312, 52, { kind: 'soft', rx: 6 });
+      slot(c, 384, y, 288, C[i] || '', { maxL: 2, blankL: 2, h: 52 });
+    }
+    return { w: W, h: H, desc: '優缺點分析圖，左邊是做得好的事，右邊是需要改進的事' };
+  };
+
+  R.linechart = function (c, d) {
+    var W = 720, H = 420, px0 = 84, px1 = 684, py0 = 72, py1 = 312;
+    var xs = c.fill ? d.x : ['', '', '', '', ''], series = c.fill ? d.series : [];
+    title(c, '線型圖');
+    text(c, 36, 60, c.fill && d.yLabel ? d.yLabel : '分數', { fill: c.p.soft });
+    for (var k = 0; k <= 5; k++) {
+      var gy = py1 - k * 48;
+      line(c, px0, gy, px1, gy, k === 0 ? { stroke: c.p.soft, sw: 1 } : {});
+      text(c, px0 - 12, gy + 4, String(k), { mono: true, fs: 12, fill: c.p.soft, anchor: 'end' });
+    }
+    var n = xs.length, ix0 = px0 + 40, ix1 = px1 - 40, xp = function (i) { return n === 1 ? (ix0 + ix1) / 2 : Math.round(ix0 + i * (ix1 - ix0) / (n - 1)); };
+    xs.forEach(function (lb, i) {
+      line(c, xp(i), py1, xp(i), py1 + 6, { stroke: c.p.soft });
+      slot(c, xp(i) - 36, py1 + 12, 72, lb, { maxL: 2, blankL: 1, anchor: 'middle' });
+    });
+    var styles = [{ s: c.p.accent, w: 2.4, dash: '' }, { s: c.p.ink, w: 1.6, dash: '' }, { s: c.p.muted, w: 1.6, dash: '5,4' }];
+    series.forEach(function (se, si) {
+      var st = styles[si], pts = se.v.map(function (v, i) { return [xp(i), Math.round(py1 - v * 48)]; });
+      c.o.push('<polyline points="' + pts.map(function (p) { return p.join(','); }).join(' ') + '" fill="none" stroke="' + st.s + '" stroke-width="' + st.w + '"' + (st.dash ? ' stroke-dasharray="' + st.dash + '"' : '') + ' stroke-linejoin="round"/>');
+      pts.forEach(function (p) { c.o.push('<circle cx="' + p[0] + '" cy="' + p[1] + '" r="4" fill="' + c.p.paper + '" stroke="' + st.s + '" stroke-width="1.6"/>'); });
+    });
+    if (c.fill) {
+      var items = series.map(function (se, si) { return { k: si === 0 ? 'acc' : si === 1 ? 'ink' : 'dash', t: se.name }; });
+      legend(c, H - 24, items, W);
+    } else {
+      legend(c, H - 24, [{ k: 'acc', t: '領域一' }, { k: 'ink', t: '領域二' }, { k: 'dash', t: '領域三' }], W);
+    }
+    return { w: W, h: H, desc: '線型圖，用不同的線追蹤各個領域在不同時間的表現' };
+  };
+
+  R.flowchart = function (c, d) {
+    var W = 720, steps = c.fill ? d.steps : pad([], 4), n = steps.length, bw = 108, bh = 80, gapx = 24, y = 72, H = 188;
+    var total = n * bw + (n - 1) * gapx, x0 = g((W - total) / 2);
+    title(c, '流程圖');
+    for (var i = 0; i < n - 1; i++) path(c, 'M' + (x0 + i * (bw + gapx) + bw) + ' ' + (y + bh / 2) + ' H' + (x0 + (i + 1) * (bw + gapx)), { accent: c.fill && i === n - 2 });
+    steps.forEach(function (s, i) {
+      var x = x0 + i * (bw + gapx), end = i === 0 || i === n - 1, f = c.fill && i === n - 1;
+      box(c, x, y, bw, bh, { kind: f ? 'focal' : 'plain', rx: end ? 20 : 6 });
+      text(c, x + bw / 2, y + 22, i === 0 ? '開始' : i === n - 1 ? '完成' : '步驟 ' + i, { fill: f ? c.p.accent : c.p.soft, w: 600, anchor: 'middle' });
+      slot(c, x + 8, y + 32, bw - 16, s, { maxL: 2, blankL: 2, anchor: 'middle' });
+    });
+    return { w: W, h: H, desc: '流程圖，依序列出從開始到完成的各個步驟' };
+  };
+
+  R.control = function (c, d) {
+    var W = 720, H = 412, ox = 36, oy = 72, ow = 648, oh = 316, ix = 184, iy = 116, iw = 352, ih = 228;
+    title(c, '控制圈圖');
+    if (c.fill && d.situation) text(c, 36, 52, '情境：' + d.situation, { fill: c.p.muted });
+    box(c, ox, oy, ow, oh, { kind: 'soft', rx: 8 });
+    box(c, ix, iy, iw, ih, { kind: 'focal', rx: 8 });
+    var ol = '關注圈：在乎，但不能控制', il = '控制圈：我能決定的';
+    var olw = g(tw(ol, 12) + 16), ilw = g(tw(il, 12) + 16);
+    c.o.push('<rect x="' + (ox + 16) + '" y="' + (oy - 8) + '" width="' + olw + '" height="16" rx="2" fill="' + c.p.paper + '"/>');
+    text(c, ox + 24, oy + 4, ol, { fill: c.p.muted, w: 600 });
+    c.o.push('<rect x="' + (ix + 16) + '" y="' + (iy - 8) + '" width="' + ilw + '" height="16" rx="2" fill="' + c.p.paper + '"/>');
+    text(c, ix + 24, iy + 4, il, { fill: c.p.accent, w: 600 });
+    var inn = c.fill ? d.inner : pad([], 4), out = c.fill ? d.outer : pad([], 4);
+    inn.forEach(function (s, i) { slot(c, ix + 20, iy + 28 + i * 48, iw - 40, s, { maxL: 2, blankL: 1 }); });
+    out.forEach(function (s, i) {
+      var left = i % 2 === 0, row = Math.floor(i / 2), x = left ? ox + 16 : ix + iw + 16;
+      slot(c, x, iy + 36 + row * 88, 116, s, { maxL: 3, blankL: 2, lh: 18 });
+    });
+    return { w: W, h: H, desc: '控制圈圖，內圈是自己能控制的事，外圈是關心卻無法控制的事' };
+  };
+
+  R.venn = function (c, d) {
+    var W = 720, H = 412, r = 140, cy = 236, c1 = 276, c2 = 444;
+    var a = c.fill ? d.a : { name: '', only: [] }, b = c.fill ? d.b : { name: '', only: [] }, both = c.fill ? d.both : [];
+    title(c, '維恩圖');
+    c.o.push('<defs><clipPath id="' + c.id + '-cp"><circle cx="' + c1 + '" cy="' + cy + '" r="' + r + '"/></clipPath></defs>');
+    c.o.push('<circle cx="' + c1 + '" cy="' + cy + '" r="' + r + '" fill="' + c.p.fill + '" stroke="' + c.p.ink + '" stroke-width="1"/>');
+    c.o.push('<circle cx="' + c2 + '" cy="' + cy + '" r="' + r + '" fill="' + c.p.fill + '" stroke="' + c.p.muted + '" stroke-width="1"/>');
+    c.o.push('<circle cx="' + c2 + '" cy="' + cy + '" r="' + r + '" fill="' + c.p.tint + '" clip-path="url(#' + c.id + '-cp)"/>');
+    c.o.push('<circle cx="' + c1 + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + c.p.ink + '" stroke-width="1"/>');
+    text(c, c1 - 40, 84, c.fill ? a.name : '第一個', { w: 600, fs: 14, anchor: 'middle' });
+    text(c, c2 + 40, 84, c.fill ? b.name : '第二個', { w: 600, fs: 14, anchor: 'middle' });
+    pad(a.only, c.fill ? a.only.length : 3).forEach(function (s, i) { slot(c, 164, cy - 64 + i * 48, 132, s, { maxL: 2, blankL: 1, anchor: 'middle' }); });
+    pad(b.only, c.fill ? b.only.length : 3).forEach(function (s, i) { slot(c, 428, cy - 64 + i * 48, 132, s, { maxL: 2, blankL: 1, anchor: 'middle' }); });
+    text(c, 360, cy - 80, '相同', { fill: c.p.accent, w: 600, anchor: 'middle' });
+    pad(both, c.fill ? both.length : 3).forEach(function (s, i) { slot(c, 312, cy - 60 + i * 44, 96, s, { maxL: 2, blankL: 1, anchor: 'middle' }); });
+    return { w: W, h: H, desc: '維恩圖，兩個圓各自列出獨有的特點，重疊的部分是兩者相同之處' };
+  };
+
+  R.brainstorm = function (c, d) {
+    var W = 720, cy = 168, H = 312, br = c.fill ? d.branches : pad([], 6);
+    var cwid = 148, chh = 64, cx = 286, bw = 164, bh = 48;
+    var left = br.filter(function (_, i) { return i % 2 === 0; }), right = br.filter(function (_, i) { return i % 2 === 1; });
+    title(c, '腦力激盪圖');
+    function col(arr, side) {
+      var m = arr.length, ys = m === 1 ? [cy] : m === 2 ? [cy - 44, cy + 44] : [cy - 84, cy, cy + 84];
+      var ex = side < 0 ? cx : cx + cwid, bx = side < 0 ? 36 : 520, tx = side < 0 ? bx + bw : bx, xm = side < 0 ? 243 : 477;
+      arr.forEach(function (s, k) {
+        var ay = m === 1 ? cy : g(cy - chh / 2 + chh * (k + 1) / (m + 1));
+        if (m === 3 && k === 1) ay = cy;
+        elbowH(c, ex, ay, tx, ys[k], xm);
+      });
+      arr.forEach(function (s, k) {
+        box(c, bx, ys[k] - bh / 2, bw, bh, {});
+        slot(c, bx + 8, ys[k] - bh / 2, bw - 16, s, { maxL: 2, blankL: 1, anchor: 'middle', h: bh });
+      });
+    }
+    col(left, -1); col(right, 1);
+    box(c, cx, cy - chh / 2, cwid, chh, { kind: 'focal' });
+    slot(c, cx + 8, cy - chh / 2 + 10, cwid - 16, c.fill ? d.center : '', { maxL: 2, blankL: 1, anchor: 'middle', w: 600 });
+    if (!c.fill) text(c, cx + cwid / 2, cy - chh / 2 + 54, '主題', { fill: c.p.accent, anchor: 'middle', w: 600 });
+    return { w: W, h: H, desc: '腦力激盪圖，主題寫在中央，向外延伸出各種想法' };
+  };
+
+  R.fishbone = function (c, d) {
+    var W = 960, H = 440, CY = 216, HEAD = 796, causes = c.fill ? d.causes : pad([], 4).map(function () { return { cat: '', items: ['', '', ''] }; });
+    var root = c.fill ? d.root : -1;
+    title(c, '魚骨圖');
+    path(c, 'M36 ' + CY + ' H' + HEAD, { accent: false });
+    var tags = [];
+    causes.forEach(function (ca, i) {
+      var k = i + 1, up = k % 2 === 1, ax = HEAD - 84 - 148 * k, fx = ax - 72, fy = up ? CY - 120 : CY + 120, f = i === root;
+      c.o.push('<line x1="' + ax + '" y1="' + CY + '" x2="' + fx + '" y2="' + fy + '" stroke="' + (f ? c.p.accent : c.p.ink) + '" stroke-width="' + (f ? 1.6 : 1.2) + '"/>');
+      (ca.items || []).slice(0, 3).forEach(function (it, j) {
+        var m = j + 2, tx = ax - 12 * m, ty = up ? CY - 20 * m : CY + 20 * m;
+        c.o.push('<line x1="' + tx + '" y1="' + ty + '" x2="' + (tx - 28) + '" y2="' + ty + '" stroke="' + c.p.soft + '" stroke-width="1"/>');
+        if (it) text(c, tx - 34, ty + 4, it, { fill: c.p.muted, anchor: 'end' });
+      });
+      tags.push({ x: fx, y: fy, up: up, cat: ca.cat, f: f });
+    });
+    tags.forEach(function (t) {
+      var tw_ = 96, th = 28, y = t.up ? t.y - th : t.y;
+      box(c, t.x - tw_ / 2, y, tw_, th, { kind: t.f ? 'focal' : 'plain', rx: 4 });
+      text(c, t.x, y + 19, t.cat || '類別', { w: 600, anchor: 'middle', fill: t.cat ? (t.f ? c.p.accent : c.p.ink) : c.p.soft });
+    });
+    box(c, HEAD, CY - 44, 144, 88, { kind: 'focal' });
+    text(c, HEAD + 12, CY - 24, '結果／問題', { fill: c.p.accent, w: 600 });
+    slot(c, HEAD + 12, CY - 14, 120, c.fill ? d.effect : '', { maxL: 3, blankL: 2, w: 600 });
+    legend(c, H - 24, [{ k: 'focal', t: '最主要的原因' }, { k: 'plain', t: '其他原因' }], W);
+    return { w: W, h: H, desc: '魚骨圖，魚頭是結果或問題，每根魚骨是一類原因' };
+  };
+
+  R.barchart = function (c, d) {
+    var W = 720, H = 416, px0 = 84, px1 = 684, py0 = 72, py1 = 304, bars = c.fill ? d.bars : pad([], 5).map(function () { return null; });
+    var n = bars.length, mx = c.fill ? Math.max.apply(null, bars.map(function (b) { return b.value; })) : 0, top = c.fill ? nice(mx) : 4, step = top / 4;
+    title(c, '長條圖');
+    text(c, 36, 60, '單位：' + (c.fill && d.unit ? d.unit : '　'), { fill: c.p.soft });
+    for (var k = 0; k <= 4; k++) {
+      var gy = py1 - k * 58;
+      line(c, px0, gy, px1, gy, k === 0 ? { stroke: c.p.soft, sw: 1 } : {});
+      if (c.fill) text(c, px0 - 12, gy + 4, String(Math.round(step * k * 100) / 100), { mono: true, fill: c.p.soft, anchor: 'end' });
+    }
+    var pitch = Math.floor((px1 - px0) / n / 4) * 4, bw = g(pitch * 0.6), best = -1, bv = -1;
+    if (c.fill) bars.forEach(function (b, i) { if (b.value > bv) { bv = b.value; best = i; } });
+    bars.forEach(function (b, i) {
+      var x = px0 + i * pitch + (pitch - bw) / 2;
+      if (b) {
+        var h = Math.max(2, Math.round(232 * b.value / top)), f = i === best;
+        c.o.push('<rect x="' + x + '" y="' + (py1 - h) + '" width="' + bw + '" height="' + h + '" fill="' + (f ? c.p.tint : c.p.fill) + '" stroke="' + (f ? c.p.accent : c.p.muted) + '" stroke-width="1"/>');
+        var vt = String(b.value), vw = g(tw(vt, 12) + 8);
+        c.o.push('<rect x="' + (x + bw / 2 - vw / 2) + '" y="' + (py1 - h - 22) + '" width="' + vw + '" height="16" rx="2" fill="' + c.p.paper + '"/>');
+        text(c, x + bw / 2, py1 - h - 8, String(b.value), { mono: true, fill: f ? c.p.accent : c.p.muted, anchor: 'middle' });
+      }
+      slot(c, px0 + i * pitch + 4, py1 + 10, pitch - 8, b ? b.label : '', { maxL: 2, blankL: 1, anchor: 'middle', w: 600 });
+    });
+    legend(c, H - 24, [{ k: 'focal', t: '最高的一項' }, { k: 'plain', t: '其他' }], W);
+    return { w: W, h: H, desc: '長條圖，用直條的高度比較不同項目的數值' };
+  };
+
+  R.synergy = function (c, d) {
+    var W = 720, H = 372, tx = 212, tw_ = 296, ty = 64, th = 80, by = 232, bw = 260, bh = 104, lx = 64, rx = 396;
+    title(c, '統合綜效圖');
+    elbowV(c, lx + bw / 2, by, tx + tw_ / 3, ty + th, 188);
+    elbowV(c, rx + bw / 2, by, tx + tw_ * 2 / 3, ty + th, 188);
+    box(c, tx, ty, tw_, th, { kind: 'focal' });
+    text(c, tx + 12, ty + 20, '第 3 選擇：更好的想法', { fill: c.p.accent, w: 600 });
+    slot(c, tx + 12, ty + 28, tw_ - 24, c.fill ? d.better : '', { maxL: 2, blankL: 2, w: 600 });
+    box(c, lx, by, bw, bh, {});
+    text(c, lx + 12, by + 20, '我的想法', { fill: c.p.soft, w: 600 });
+    slot(c, lx + 12, by + 28, bw - 24, c.fill ? d.mine : '', { maxL: 3, blankL: 3 });
+    box(c, rx, by, bw, bh, {});
+    text(c, rx + 12, by + 20, '你的想法', { fill: c.p.soft, w: 600 });
+    slot(c, rx + 12, by + 28, bw - 24, c.fill ? d.yours : '', { maxL: 3, blankL: 3 });
+    return { w: W, h: H, desc: '統合綜效圖，把我的想法和你的想法合起來，找出比雙方原本更好的第三選擇' };
+  };
+
+  // ---- 資料清理 ---------------------------------------------------------
+  function S(x, n) { x = String(x == null ? '' : x).trim(); return x.length > n ? x.slice(0, n) : x; }
+  function A(a, max, n) { return (Array.isArray(a) ? a : []).map(function (x) { return S(x, n); }).filter(Boolean).slice(0, max); }
+  function I(x, lo, hi, def) { x = Math.round(Number(x)); return isFinite(x) ? Math.min(hi, Math.max(lo, x)) : def; }
+  var CLEAN = {
+    priority: function (d) {
+      var it = (Array.isArray(d.items) ? d.items : []).map(function (x) { x = x || {}; var p = S(x.p, 1).toUpperCase(); return { t: S(x.t, 28), p: 'ABC'.indexOf(p) >= 0 && p ? p : 'C' }; }).filter(function (x) { return x.t; }).slice(0, 6);
+      return it.length >= 3 ? { items: it } : null;
+    },
+    lotus: function (d) { var p = pad(A(d.petals, 8, 14), 8); return S(d.center, 14) && p.filter(Boolean).length >= 4 ? { center: S(d.center, 14), petals: p } : null; },
+    goalplan: function (d) { var a = A(d.actions, 4, 30); return S(d.goal, 32) && a.length >= 2 ? { goal: S(d.goal, 32), actions: a } : null; },
+    gantt: function (d) {
+      var T = I(d.total, 3, 10, 6), t = (Array.isArray(d.tasks) ? d.tasks : []).map(function (x) { x = x || {}; var s = I(x.s, 1, T, 1), e = I(x.e, 1, T, s); return { t: S(x.t, 16), s: Math.min(s, e), e: Math.max(s, e) }; }).filter(function (x) { return x.t; }).slice(0, 6);
+      return t.length >= 3 ? { unit: S(d.unit, 2) || '週', total: T, tasks: t } : null;
+    },
+    stopthink: function (d) { var o = pad(A(d.options, 3, 28), 3); return S(d.stimulus, 40) && o.filter(Boolean).length === 3 ? { stimulus: S(d.stimulus, 40), options: o, choice: I(d.choice, 0, 2, 1) } : null; },
+    proscons: function (d) { var p = A(d.pros, 4, 28), q = A(d.cons, 4, 28); return p.length && q.length ? { pros: p, cons: q } : null; },
+    linechart: function (d) {
+      var x = A(d.x, 6, 6); if (x.length < 2) return null;
+      var s = (Array.isArray(d.series) ? d.series : []).slice(0, 3).map(function (se) { se = se || {}; var v = Array.isArray(se.v) ? se.v : []; return { name: S(se.name, 8), v: x.map(function (_, i) { var n = Number(v[i]); return isFinite(n) ? Math.min(5, Math.max(0, n)) : 0; }) }; }).filter(function (se) { return se.name; });
+      return s.length ? { x: x, series: s, yLabel: S(d.yLabel, 12) } : null;
+    },
+    flowchart: function (d) { var s = A(d.steps, 5, 18); return s.length >= 3 ? { steps: s } : null; },
+    control: function (d) { var a = A(d.inner, 4, 26), b = A(d.outer, 4, 16); return a.length && b.length ? { situation: S(d.situation, 28), inner: a, outer: b } : null; },
+    venn: function (d) {
+      d = d || {}; var a = d.a || {}, b = d.b || {};
+      var o = { a: { name: S(a.name, 8), only: A(a.only, 3, 12) }, b: { name: S(b.name, 8), only: A(b.only, 3, 12) }, both: A(d.both, 3, 10) };
+      return o.a.name && o.b.name && o.both.length ? o : null;
+    },
+    brainstorm: function (d) { var b = A(d.branches, 6, 14); return S(d.center, 14) && b.length >= 3 ? { center: S(d.center, 14), branches: b } : null; },
+    fishbone: function (d) {
+      var ca = (Array.isArray(d.causes) ? d.causes : []).slice(0, 4).map(function (x) { x = x || {}; return { cat: S(x.cat, 6), items: A(x.items, 3, 6) }; }).filter(function (x) { return x.cat && x.items.length; });
+      return S(d.effect, 24) && ca.length >= 2 ? { effect: S(d.effect, 24), causes: ca, root: I(d.root, 0, ca.length - 1, 0) } : null;
+    },
+    barchart: function (d) {
+      var b = (Array.isArray(d.bars) ? d.bars : []).map(function (x) { x = x || {}; var v = Number(x.value); return { label: S(x.label, 10), value: isFinite(v) && v >= 0 ? v : 0 }; }).filter(function (x) { return x.label; }).slice(0, 6);
+      return b.length >= 2 ? { unit: S(d.unit, 6), bars: b } : null;
+    },
+    synergy: function (d) { var m = S(d.mine, 40), y = S(d.yours, 40), b = S(d.better, 44); return m && y && b ? { mine: m, yours: y, better: b } : null; }
+  };
+
+  // 14 個領導力工具：名稱、說明（取自老師提供的工具文件）、此工具圖的 JSON 格式、常搭配的習慣
+  var TOOLS = [
+    { key: 'priority', name: '優先順序表', habits: [3], desc: '優先順序表是實行「要事第一」的極佳工具。學生先列出所有要做的事，在每件事前面標上 A、B、C：A 最重要而且非做不可，B 有點重要，C 不太重要。也可用數字標示重要性。',
+      shape: '{"items":[{"t":"事項，28 字內","p":"A|B|C"}×4~6，A 排最前]}' },
+    { key: 'lotus', name: '蓮花圖', habits: [2, 6], desc: '蓮花圖是腦力激盪或匯整想法的工具，最中間的格子是討論的主題，旁邊 8 格是與主題相關的概念，可用來針對一個主題腦力激盪或拆解大問題。',
+      shape: '{"center":"主題，14 字內","petals":["概念，14 字內"×8]}' },
+    { key: 'goalplan', name: '目標計畫表', habits: [2, 3], desc: '目標計畫表用來釐清目標以及達成目標所需完成的工作事項。最上方寫清晰、具體的目標，下方寫達成目標要採取的各項行動。可與甘特圖及優先順序表一起使用。',
+      shape: '{"goal":"清晰具體的目標，32 字內","actions":["行動，30 字內"×3~4]}' },
+    { key: 'gantt', name: '甘特圖', habits: [3, 2], desc: '甘特圖用於計畫專案的時程，標出專案開始與結束的時間，以及每個工作事項需要的工作時間。較複雜，適合高年級以上學生。',
+      shape: '{"unit":"週|天","total":總期數 3~10,"tasks":[{"t":"工作，16 字內","s":開始期數,"e":結束期數}×3~6]}' },
+    { key: 'stopthink', name: '停步思考圖', habits: [1], desc: '停步思考圖強化「在刺激與反應之間，我們有選擇的空間」。先把刺激（碰到的情境、事件）寫在左邊，再想可能的幾種反應，最後把最適當的反應寫在右邊。',
+      shape: '{"stimulus":"刺激，40 字內","options":["可能的反應，28 字內"×3],"choice":最適當反應的索引 0~2}' },
+    { key: 'proscons', name: '優缺點分析圖', habits: [4, 7], desc: '優缺點分析圖用於評估一個情況，或整理大家對一個活動的回饋。左欄列出表現優異或進行順利的事項，右欄列出需要改進的事項。可用於班級、小組或個人。',
+      shape: '{"pros":["做得好的，28 字內"×3~4],"cons":["需要改進的，28 字內"×3~4]}' },
+    { key: 'linechart', name: '線型圖', habits: [7], desc: '線型圖用於比較不同時間的資料。學生追蹤自己每週、每月、每學期在某些領域的表現，每條線代表一個領域。',
+      shape: '{"yLabel":"縱軸說明，12 字內","x":["時間點，6 字內"×4~6],"series":[{"name":"領域，8 字內","v":[每個時間點的分數 0~5]}×1~3]}' },
+    { key: 'flowchart', name: '流程圖', habits: [2, 3], desc: '流程圖是具組織功能的工具，用於規劃或描述一個流程。學生可規劃每個科目專案的執行步驟，或記錄自己一天的行程。',
+      shape: '{"steps":["步驟，18 字內"×4~5，第一個是開始、最後一個是完成]}' },
+    { key: 'control', name: '控制圈圖', habits: [1], desc: '控制圈圖幫助學生專注於自己能掌控的事。將可以掌控的事列在內圈（控制圈），很關心卻無法掌控的事列在外圈（關注圈）。例：準時上學，天氣與交通在關注圈，準時起床、前一天準備好衣服在控制圈。',
+      shape: '{"situation":"情境，28 字內","inner":["我能控制的，26 字內"×3~4],"outer":["在乎但不能控制的，16 字內"×3~4]}' },
+    { key: 'venn', name: '維恩圖', habits: [4, 5], desc: '維恩圖用來比較不同事物的異同。兩個圓圈各自寫出獨有的特點，重疊的部分寫出相同之處。小學階段通常先用兩個圓圈。',
+      shape: '{"a":{"name":"甲，8 字內","only":["獨有特點，12 字內"×2~3]},"b":{"name":"乙，8 字內","only":["獨有特點，12 字內"×2~3]},"both":["相同點，10 字內"×2~3]}' },
+    { key: 'brainstorm', name: '腦力激盪圖', habits: [6, 8], desc: '腦力激盪圖用於創意發想與規劃，讓學生以非線性方式整理想法。主題寫在中央，以線條延伸出不同想法。腦力激盪時不批評、不刪減，鼓勵創意，最後再篩選。',
+      shape: '{"center":"主題，14 字內","branches":["想法，14 字內"×4~6]}' },
+    { key: 'fishbone', name: '魚骨圖', habits: [5, 6], desc: '魚骨圖（石川圖）呈現特定事件、問題或結果的肇因。魚頭寫結果或問題，分支出去的魚骨寫導致的原因，可用來分析問題成因或達成某種結果所需的元素。',
+      shape: '{"effect":"結果或問題，24 字內","causes":[{"cat":"原因類別，6 字內","items":["具體原因，6 字內"×2~3]}×3~4],"root":最主要原因類別的索引}' },
+    { key: 'synergy', name: '統合綜效圖', habits: [6, 4], desc: '統合綜效圖用於對解決某件事有不同意見時，幫助學生找到比雙方原先想法都更好的「第 3 選擇」。左右分別寫「我的想法」和「你的想法」，一起腦力激盪出「更好的想法」寫在上方。第 3 選擇不是妥協，是雙方都認為更好的方案。',
+      shape: '{"mine":"我的想法，40 字內","yours":"你的想法，40 字內","better":"更好的想法（不是妥協），44 字內"}' },
+    { key: 'barchart', name: '長條圖', habits: [7, 8], desc: '長條圖用於比較不同的數值，每個數值用一個直條表示，可比較幾組不同的數值，或某個數值在不同時間點的差異。',
+      shape: '{"unit":"單位，6 字內","bars":[{"label":"項目，10 字內","value":數值}×3~6]}' }
+  ];
+  var BYNAME = {}; TOOLS.forEach(function (t) { BYNAME[t.name] = t; });
+  function toolFor(s) {
+    s = String(s || '');
+    if (BYNAME[s]) return BYNAME[s];
+    for (var i = 0; i < TOOLS.length; i++) if (s.indexOf(TOOLS[i].name) >= 0 || (TOOLS[i].key === 'control' && /控制圈/.test(s)) || (TOOLS[i].key === 'venn' && /范氏|維恩/.test(s)) || (TOOLS[i].key === 'proscons' && /優缺點/.test(s))) return TOOLS[i];
+    return null;
+  }
+
+  function render(key, data, opt) {
+    opt = opt || {};
+    var fn = R[key]; if (!fn) return null;
+    var fill = opt.fill !== false && !!data;
+    var id = 'dg' + (++seq), c = { fill: fill, p: opt.light ? LIGHT : pal(), id: id, o: [] };
+    var m = fn(c, data || {});
+    var name = TOOLS.filter(function (x) { return x.key === key; })[0].name;
+    var defs = '<defs><marker id="' + id + '-a" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="' + c.p.muted + '"/></marker>' +
+      '<marker id="' + id + '-aa" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="' + c.p.accent + '"/></marker></defs>';
+    var size = opt.light ? ' width="' + m.w + '" height="' + m.h + '"' : ' style="min-width:' + m.w + 'px;width:100%;height:auto;display:block"';
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + m.w + ' ' + m.h + '"' + size + ' role="img" aria-labelledby="' + id + '-title ' + id + '-desc">' +
+      '<title id="' + id + '-title">' + esc(name + (fill ? '' : '（空白學習單）')) + '</title><desc id="' + id + '-desc">' + esc(m.desc) + '</desc>' + defs +
+      '<rect width="100%" height="100%" fill="' + c.p.paper + '"/>' + c.o.join('') + '</svg>';
+  }
+
+  return { TOOLS: TOOLS, toolFor: toolFor, clean: function (key, d) { try { return CLEAN[key] ? CLEAN[key](d || {}) : null; } catch (e) { return null; } }, render: render, LIGHT: LIGHT };
+})();
+
+</script>
+<script>
 (function () {
   var HABITS = JSON.parse(document.getElementById('habits-data').textContent);
   var NUM = ['一', '二', '三', '四', '五', '六', '七', '八'];
@@ -169,10 +721,11 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
   ];
   var NUDGES = ['下課十分鐘', '營養午餐', '打掃時間', '分組報告', '班級群組', '體育課', '社團活動', '段考前一週', '校外教學', '調座位', '借東西沒還', '比賽輸了之後', '早自習', '手機與零用錢', '值日生', '才藝表演前'];
   var FIELDS = ['scene', 'def', 'hear', 'event', 'failure', 'ask', 'out', 'tool', 'toolDesc', 'ifthen', 'when', 'revisit'];
+  var downloads = null;
   var KEY = 'sevenhabits-generator-v1';
 
   var $ = function (id) { return document.getElementById(id); };
-  var st = { habit: 0, band: 1, topic: '', plan: null, nudge: '' };
+  var st = { habit: 0, band: 1, topic: '', plan: null, nudge: '', view: 'fill' };
   var sample = null, ctl = null;
 
   function load() { try { var s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') st = Object.assign(st, s); } catch (e) {} }
@@ -200,7 +753,7 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
     });
   }
 
-  function autosize(t) { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; }
+  function autosize(t) { if (t.tagName !== 'TEXTAREA') return; t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; }
 
   function renderJudges() {
     var box = $('judges'); box.innerHTML = '';
@@ -233,8 +786,40 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
     $('ptitle').textContent = st.plan.title || '（未命名教案）';
     FIELDS.forEach(function (k) { var t = $(k); t.value = st.plan[k] || ''; });
     renderJudges();
+    syncTool();
     requestAnimationFrame(function () { FIELDS.forEach(function (k) { autosize($(k)); }); });
     updateChecks();
+    drawDiagram();
+  }
+
+  function buildToolSelect() {
+    var sel = $('toolSel'); sel.innerHTML = '';
+    DG.TOOLS.forEach(function (t) { var o = document.createElement('option'); o.value = t.name; o.textContent = t.name; sel.appendChild(o); });
+    var o = document.createElement('option'); o.value = ''; o.textContent = '其他工具（自行輸入）'; sel.appendChild(o);
+  }
+  function syncTool() {
+    var t = DG.toolFor(st.plan.tool);
+    $('toolSel').value = t ? t.name : '';
+    $('tool').hidden = !!t;
+    $('tool').value = st.plan.tool || '';
+  }
+  function curDiagram() {
+    var t = DG.toolFor(st.plan && st.plan.tool);
+    if (!t) return { t: null, data: null };
+    var d = st.plan.diagram && st.plan.diagram.key === t.key ? st.plan.diagram.data : null;
+    return { t: t, data: d };
+  }
+  function drawDiagram() {
+    if (!st.plan) return;
+    var cd = curDiagram(), box = $('dgm'), hint = $('dgm-status');
+    var fill = st.view !== 'blank' && !!cd.data;
+    $('vFill').setAttribute('aria-pressed', st.view !== 'blank'); $('vBlank').setAttribute('aria-pressed', st.view === 'blank');
+    $('svgSave').hidden = !(downloads && cd.t);
+    $('redraw').disabled = !sample || !cd.t;
+    $('redraw').textContent = cd.data ? '重畫範例內容' : '生成範例內容';
+    if (!cd.t) { box.innerHTML = ''; hint.textContent = '這個工具沒有內建的圖。從清單選一個領導力工具，就會出現對應的圖與空白學習單。'; return; }
+    box.innerHTML = DG.render(cd.t.key, cd.data, { fill: fill });
+    hint.textContent = (st.view !== 'blank' && !cd.data) ? '這個工具還沒有範例內容，先顯示空白學習單。按「生成範例內容」讓 AI 依這堂課填寫。' : (fill ? '範例內容由 AI 依這堂課填寫，可切換成空白學習單給學生用。' : '空白學習單：學生自己填。');
   }
 
   function checks(d) {
@@ -251,6 +836,7 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
       { ok: evOk, label: '教師事件含失敗' },
       { ok: !!T('ask') && !!T('out'), label: '提問與學生產出' },
       { ok: ifOk, label: 'if-then 格式' },
+      { ok: !!DG.toolFor(d.tool), label: '工具為領導力工具' },
       { ok: !!T('when') && !!T('revisit') && !!T('tool'), label: '工具與回顧時間點' }
     ];
   }
@@ -275,6 +861,10 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
     var S = function (x) { return String(x == null ? '' : x).trim(); };
     var p = { title: S(o.title) };
     FIELDS.forEach(function (k) { p[k] = S(o[k]); });
+    var tl = DG.toolFor(p.tool);
+    if (tl) p.tool = tl.name;
+    var dd = tl ? DG.clean(tl.key, o.diagram) : null;
+    p.diagram = dd ? { key: tl.key, data: dd } : null;
     var js = Array.isArray(o.judgments) ? o.judgments : [];
     p.judgments = [0, 1, 2].map(function (i) {
       var j = js[i] || {}, v = S(j.v);
@@ -284,7 +874,13 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
     return p;
   }
 
-  var SHAPE = '{"title":"教案名稱，8-14 字，像一個課堂主題","scene":"這堂課的情境，一句話","def":"一句話定義，格式：習慣名是「…」。","judgments":[{"q":"學生會遇到的情況","v":"是|不是|再問","r":"理由，v 是「是」時可留空"},{同左},{同左}],"hear":"一句學生該聽見的話","event":"教師事件，第一人稱，100 字內，含老師自己的失敗，不美化，用「」包起來","failure":"event 中描述失敗的那一句，原文照抄","ask":"一個開放提問，用「」包起來","out":"學生要分享的自己的事件，要說得出什麼","tool":"工具名稱","toolDesc":"每一格寫什麼、學生怎麼填，兩句內","ifthen":"if-then 句，格式「當＿＿，我會＿＿。」，要具體","when":"回顧時間點，如一週後","revisit":"回顧時只問的一句話，不評分"}';
+  var SHAPE = '{"title":"教案名稱，8-14 字，像一個課堂主題","scene":"這堂課的情境，一句話","def":"一句話定義，格式：習慣名是「…」。","judgments":[{"q":"學生會遇到的情況","v":"是|不是|再問","r":"理由，v 是「是」時可留空"},{同左},{同左}],"hear":"一句學生該聽見的話","event":"教師事件，第一人稱，100 字內，含老師自己的失敗，不美化，用「」包起來","failure":"event 中描述失敗的那一句，原文照抄","ask":"一個開放提問，用「」包起來","out":"學生要分享的自己的事件，要說得出什麼","tool":"必須是 14 個領導力工具名稱之一","toolDesc":"學生拿到這張圖時每一格寫什麼，兩句內","ifthen":"if-then 句，格式「當＿＿，我會＿＿。」，要具體","when":"回顧時間點，如一週後","revisit":"回顧時只問的一句話，不評分","diagram":"所選工具的示範填寫內容，格式見工具清單，內容要和這堂課的情境、定義呼應"}';
+
+  function toolList() {
+    return DG.TOOLS.map(function (t) {
+      return (t.habits.indexOf(st.habit + 1) >= 0 ? '★' : '・') + t.name + '：' + t.desc + ' diagram 格式：' + t.shape;
+    }).join('\n');
+  }
 
   function buildPrompt() {
     var h = HABITS[st.habit], b = BANDS[st.band];
@@ -304,16 +900,19 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
       '3. 教師事件是老師自己的真實感失敗，要寫出失敗發生的那一句，不要把結尾寫成成功收場。',
       '4. if-then 要具體到學生明天就能用，不要寫成空泛的勉勵。',
       '5. 不新增與情境無關的事實或數據。',
+      '6. 第三步驟「應用」的工具，優先從下列 14 個領導力工具挑一個最適合這個情境的；只有確實沒有合適的才自訂。tool 欄只寫工具名稱，並依該工具的 diagram 格式輸出示範填寫內容，每格要簡短（不超過標示字數）。標 ★ 的是常與本習慣搭配的工具。',
+      toolList(),
       '參考範例（只學結構與語氣）：' + sampleJson,
       '只輸出一個 JSON 物件，不要任何其他文字。欄位如下：' + SHAPE
     ].join('\n');
   }
 
-  function busy(on, msg) {
-    $('gen').disabled = on; $('regen').disabled = on; $('fix').disabled = on;
+  function busy(on, msg, sid) {
+    $('gen').disabled = on; $('regen').disabled = on; $('fix').disabled = on; $('redraw').disabled = on;
     $('stop').hidden = !on;
-    setStatus(msg || '');
+    setStatus('');
     setStatus('', false, 'foot-status');
+    if (sid) setStatus(msg || '', false, sid); else setStatus(msg || '');
   }
   function errCopy(e) {
     var c = e && e.code;
@@ -325,21 +924,21 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
     return '生成失敗，請再按一次。';
   }
 
-  async function run(prompt, label) {
-    if (!sample) { setStatus('這個環境沒有 AI，請在 Claude 裡開啟這個頁面。', true); return null; }
+  async function run(prompt, label, sid) {
+    if (!sample) { setStatus('這個環境沒有 AI，請在 Claude 裡開啟這個頁面。', true, sid); return null; }
     ctl = new AbortController();
-    busy(true, 'Thinking…');
+    busy(true, 'Thinking…', sid);
     var t0 = Date.now();
     try {
       var data = await sample.json(prompt, {
         signal: ctl.signal, cache: false,
-        onText: function (u) { setStatus(label + '　已寫 ' + u.text.length + ' 字　' + Math.round((Date.now() - t0) / 1000) + ' 秒'); }
+        onText: function (u) { setStatus(label + '　已寫 ' + u.text.length + ' 字　' + Math.round((Date.now() - t0) / 1000) + ' 秒', false, sid); }
       });
       return data;
     } catch (e) {
-      setStatus(errCopy(e), e && e.code !== 'cancelled');
+      setStatus(errCopy(e), e && e.code !== 'cancelled', sid);
       return null;
-    } finally { busy(false, $('status').textContent); }
+    } finally { var keep = $(sid || 'status').textContent; busy(false, keep, sid); }
   }
 
   async function generate() {
@@ -357,7 +956,7 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
     var bad = checks(st.plan).filter(function (x) { return !x.ok; }).map(function (x) { return x.label; });
     var p = '以下是一份教案草稿（JSON）。請只修正未通過的項目：' + bad.join('、') + '。其他欄位維持原意，不要改寫成全新的情境。\n'
       + '規則：判斷題至少兩題 v 不是「是」；教師事件要有老師自己的失敗，至少 30 字，failure 是 event 中原文的一句；if-then 格式「當＿＿，我會＿＿。」；回顧時間點與工具要填。\n'
-      + '草稿：' + JSON.stringify(st.plan) + '\n只輸出修正後的完整 JSON 物件，欄位如下：' + SHAPE;
+      + '草稿：' + JSON.stringify(Object.assign({}, st.plan, { diagram: st.plan.diagram ? st.plan.diagram.data : null })) + '\n只輸出修正後的完整 JSON 物件，欄位如下：' + SHAPE;
     var o = await run(p, '修正中');
     if (!o || typeof o !== 'object') return;
     st.plan = normalize(o); persist(); renderPlan();
@@ -379,6 +978,38 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
     return L.join('\n');
   }
 
+  async function redraw() {
+    var cd = curDiagram(); if (!cd.t || !st.plan) return;
+    var p = st.plan;
+    var q = '以下是一堂品格教案的內容。請為「' + cd.t.name + '」填寫這堂課的示範內容，讓老師能直接拿來示範給學生看。\n'
+      + '習慣' + NUM[st.habit] + '「' + HABITS[st.habit].name + '」，年段：' + BANDS[st.band].n + '（' + BANDS[st.band].g + '）。\n'
+      + '情境：' + p.scene + '\n定義：' + p.def + '\n教師事件：' + p.event + '\n工具用法：' + p.toolDesc + '\n'
+      + '工具說明：' + cd.t.desc + '\n'
+      + '內容要和上述情境、定義呼應，每格簡短。只輸出一個 JSON 物件，不要任何其他文字，格式：' + cd.t.shape;
+    var o = await run(q, '畫圖中', 'dgm-status');
+    if (!o || typeof o !== 'object') return;
+    var dd = DG.clean(cd.t.key, o);
+    if (!dd) { setStatus('AI 回傳的圖內容不完整，請再按一次。', true, 'dgm-status'); return; }
+    st.plan.diagram = { key: cd.t.key, data: dd }; st.view = 'fill'; persist(); drawDiagram();
+  }
+  $('redraw').onclick = redraw;
+  $('vFill').onclick = function () { st.view = 'fill'; persist(); drawDiagram(); };
+  $('vBlank').onclick = function () { st.view = 'blank'; persist(); drawDiagram(); };
+  $('toolSel').onchange = function () {
+    if (!st.plan) return;
+    var v = $('toolSel').value;
+    if (v) { st.plan.tool = v; } else { st.plan.tool = ''; }
+    persist(); syncTool(); updateChecks(); drawDiagram();
+  };
+  $('tool').addEventListener('input', function () { if (!st.plan) return; var t = DG.toolFor($('tool').value); if (t) { st.plan.tool = t.name; syncTool(); } updateChecks(); drawDiagram(); });
+  $('svgSave').onclick = async function () {
+    var cd = curDiagram(); if (!cd.t || !downloads) return;
+    var fill = st.view !== 'blank' && !!cd.data;
+    try {
+      await downloads.save({ filename: '領導力工具-' + cd.t.name + (fill ? '' : '-空白學習單') + '.svg', data: DG.render(cd.t.key, cd.data, { fill: fill, light: true }) });
+      setStatus('已送出下載。', false, 'dgm-status');
+    } catch (e) { if (!e || e.code !== 'declined') setStatus('下載失敗。', true, 'dgm-status'); }
+  };
   $('gen').onclick = generate;
   $('regen').onclick = generate;
   $('fix').onclick = fixIt;
@@ -402,6 +1033,8 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
   };
 
   load();
+  buildToolSelect();
+  try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { drawDiagram(); }); new MutationObserver(function () { drawDiagram(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch (e) {}
   $('topic').value = st.topic || '';
   renderControls();
   renderPlan();
@@ -409,8 +1042,8 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
   (async function () {
     try { sample = (window.claude && window.claude.use) ? await window.claude.use('sample') : null; } catch (e) { sample = null; }
     if (!sample) { $('gen').disabled = true; $('regen').disabled = true; setStatus('這個環境沒有 AI，請在 Claude 裡開啟這個頁面。', true); }
-    try { var d = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null; $('save').hidden = !d; } catch (e) {}
-    if (st.plan) updateChecks();
+    try { downloads = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null; $('save').hidden = !downloads; } catch (e) { downloads = null; }
+    if (st.plan) { updateChecks(); drawDiagram(); }
   })();
 })();
 </script>
