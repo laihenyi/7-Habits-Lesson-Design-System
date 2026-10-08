@@ -105,6 +105,13 @@ select { font: inherit; color: var(--ink); background: var(--bg); border: 1px so
 .opt b { font-weight: 600; line-height: 1.6; }
 .opt span { color: var(--muted); font-size: 13px; line-height: 1.5; }
 .opt[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.sw { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--muted); cursor: pointer; }
+.sw input { margin-top: 4px; }
+.dlg-back { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+.dlg-back[hidden] { display: none; }
+.dlg { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; max-width: 720px; width: 100%; max-height: 100%; overflow: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.steps-list { margin: 0; padding-left: 20px; color: var(--muted); font-size: 14px; }
+textarea.scroll { overflow: auto; resize: vertical; }
 .dgm { overflow-x: auto; border-radius: 8px; background: var(--d-paper); }
 .dgm svg { display: block; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
@@ -132,6 +139,8 @@ select { font: inherit; color: var(--ink); background: var(--bg); border: 1px so
       <button class="btn ghost" id="stop" type="button" hidden>停止</button>
       <span class="status" id="status" role="status"></span>
     </div>
+    <label class="sw"><input type="checkbox" id="manualSw"> 手動模式：不用 Claude 內建 AI，改成複製提示詞到任何免費 AI（Claude、ChatGPT、Gemini），再把回覆貼回來</label>
+    <p class="hint" id="aiNote" role="status" hidden></p>
   </section>
 
   <section class="panel" id="defPanel" aria-label="定義" hidden>
@@ -200,6 +209,22 @@ select { font: inherit; color: var(--ink); background: var(--bg); border: 1px so
   </article>
 </div>
 
+<div class="dlg-back" id="mDlg" hidden>
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <h2 id="mTitle" style="font:700 18px/1.4 var(--font-display);margin:0"></h2>
+    <ol class="steps-list">
+      <li>按「複製提示詞」。</li>
+      <li>貼到你的免費 AI（Claude、ChatGPT、Gemini 都可以），送出。</li>
+      <li>把 AI 的回覆整段複製，貼到下面的框，按「送出回覆」。</li>
+    </ol>
+    <div class="f"><label for="mPrompt">提示詞</label><textarea id="mPrompt" class="scroll" rows="7" readonly></textarea></div>
+    <div class="row"><button class="btn small" id="mCopy" type="button">複製提示詞</button><span class="status" id="mCopyStatus" role="status"></span></div>
+    <div class="f"><label for="mReply">AI 的回覆</label><textarea id="mReply" class="scroll" rows="7" placeholder="把 AI 的回覆整段貼在這裡"></textarea></div>
+    <p class="status err" id="mErr" role="alert"></p>
+    <div class="row"><button class="btn" id="mSubmit" type="button">送出回覆</button><button class="btn ghost" id="mCancel" type="button">取消</button></div>
+  </div>
+</div>
+
 <script type="application/json" id="habits-data">__HABITS__</script>
 <script>
 __DG__
@@ -254,7 +279,7 @@ __DG__
   var KEY = 'sevenhabits-generator-v1';
 
   var $ = function (id) { return document.getElementById(id); };
-  var st = { habit: 0, band: 1, topic: '', setting: '', defs: null, chosen: '', plan: null, nudge: '', view: 'fill' };
+  var st = { habit: 0, band: 1, topic: '', setting: '', defs: null, chosen: '', manual: false, plan: null, nudge: '', view: 'fill' };
   var sample = null, ctl = null;
 
   function load() { try { var s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') st = Object.assign(st, s); } catch (e) {} }
@@ -357,7 +382,7 @@ __DG__
     var fill = st.view !== 'blank' && !!cd.data;
     $('vFill').setAttribute('aria-pressed', st.view !== 'blank'); $('vBlank').setAttribute('aria-pressed', st.view === 'blank');
     $('svgSave').hidden = !(downloads && cd.t);
-    $('redraw').disabled = !sample || !cd.t;
+    $('redraw').disabled = !cd.t;
     $('redraw').textContent = cd.data ? '重畫範例內容' : '生成範例內容';
     if (!cd.t) { box.innerHTML = ''; hint.textContent = '這個工具沒有內建的圖。從清單選一個領導力工具，就會出現對應的圖與空白學習單。'; return; }
     box.innerHTML = DG.render(cd.t.key, cd.data, { fill: fill });
@@ -391,7 +416,7 @@ __DG__
       var i = document.createElement('i'); i.textContent = x.ok ? '✓' : '✗';
       s.append(i, x.label); box.appendChild(s);
     });
-    $('fix').hidden = !(sample && n < c.length);
+    $('fix').hidden = !(n < c.length);
   }
   function onEdit() { persist(); updateChecks(); }
 
@@ -498,15 +523,52 @@ __DG__
   function errCopy(e) {
     var c = e && e.code;
     if (c === 'cancelled') return '已停止。';
-    if (c === 'not_granted') return '你尚未允許這個頁面使用 Claude，所以無法生成。';
+    if (c === 'not_granted' || c === 'sampling_disabled' || c === 'capability_disabled' || c === 'not_declared') return '這個帳號目前不能用內建 AI。請勾選「手動模式」，改用複製貼上。';
     if (c === 'rate_limited') return '呼叫太頻繁或已達使用上限，請稍後再按一次。';
     if (c === 'session_expired') return '登入已過期，請重新整理頁面並登入。';
     if (c === 'invalid_json') return 'AI 回傳的格式不完整，請再按一次生成。';
     return '生成失敗，請再按一次。';
   }
 
+  function useManual() { return !sample || st.manual; }
+  var mResolve = null;
+  function parseLoose(txt) {
+    txt = String(txt || '').trim(); if (!txt) return null;
+    var cands = [], m = txt.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (m) cands.push(m[1]);
+    var a = txt.indexOf('{'), b = txt.lastIndexOf('}');
+    if (a >= 0 && b > a) cands.push(txt.slice(a, b + 1));
+    cands.push(txt);
+    for (var i = 0; i < cands.length; i++) {
+      var c = cands[i], nt = function (x) { return x.replace(/,\s*([}\]])/g, '$1'); };
+      var tries = [c, nt(c), nt(c.replace(/\u201C/g, '\u300C').replace(/\u201D/g, '\u300D')), nt(c.replace(/[\u201C\u201D]/g, '"'))];
+      for (var j = 0; j < tries.length; j++) { try { var o = JSON.parse(tries[j]); if (o && typeof o === 'object') return o; } catch (e) {} }
+    }
+    return null;
+  }
+  async function copyText(txt) {
+    try { await navigator.clipboard.writeText(txt); return true; } catch (e) {}
+    var t = document.createElement('textarea'); t.value = txt; t.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(t); t.select();
+    var ok = false; try { ok = document.execCommand('copy'); } catch (x) {}
+    t.remove(); return ok;
+  }
+  function closeManual(val) {
+    $('mDlg').hidden = true;
+    var r = mResolve; mResolve = null; if (r) r(val);
+  }
+  function manualRun(prompt, label, sid) {
+    return new Promise(function (resolve) {
+      mResolve = resolve;
+      var full = prompt + '\n\n（請輸出合法的 JSON：所有字串用英文半形雙引號包起來，字串裡面不要再出現半形雙引號，要引用請用「」；除了 JSON 以外不要寫任何說明。）';
+      $('mTitle').textContent = '手動模式：' + label.replace(/中$/, '');
+      $('mPrompt').value = full; $('mReply').value = ''; $('mErr').textContent = ''; $('mCopyStatus').textContent = '';
+      $('mDlg').hidden = false; $('mCopy').focus();
+      setStatus('', false, sid);
+    });
+  }
+
   async function run(prompt, label, sid) {
-    if (!sample) { setStatus('這個環境沒有 AI，請在 Claude 裡開啟這個頁面。', true, sid); return null; }
+    if (useManual()) return manualRun(prompt, label, sid);
     ctl = new AbortController();
     busy(true, 'Thinking…', sid);
     var t0 = Date.now();
@@ -631,6 +693,16 @@ __DG__
       setStatus('已送出下載。', false, 'dgm-status');
     } catch (e) { if (!e || e.code !== 'declined') setStatus('下載失敗。', true, 'dgm-status'); }
   };
+  $('manualSw').checked = !!st.manual;
+  $('manualSw').addEventListener('change', function () { st.manual = $('manualSw').checked; persist(); });
+  $('mCopy').onclick = async function () { var ok = await copyText($('mPrompt').value); $('mCopyStatus').textContent = ok ? '已複製。' : '無法自動複製，請在框內全選後手動複製。'; if (!ok) { $('mPrompt').focus(); $('mPrompt').select(); } };
+  $('mSubmit').onclick = function () {
+    var o = parseLoose($('mReply').value);
+    if (!o) { $('mErr').textContent = '讀不到有效的內容。請確認貼的是 AI 回覆的整段，而且是 JSON（以 { 開頭、以 } 結尾）。若格式一直不對，回 AI 說「請只輸出合法 JSON」再貼一次。'; return; }
+    closeManual(o);
+  };
+  $('mCancel').onclick = function () { closeManual(null); };
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('mDlg').hidden) closeManual(null); });
   $('gen').onclick = getDefs;
   $('moreDefs').onclick = getDefs;
   $('redef').onclick = getDefs;
@@ -668,10 +740,21 @@ __DG__
   renderPlan();
 
   (async function () {
-    try { sample = (window.claude && window.claude.use) ? await window.claude.use('sample') : null; } catch (e) { sample = null; }
-    if (!sample) { $('regen').disabled = true; setStatus('這個環境沒有 AI，請在 Claude 裡開啟這個頁面。只能先看附件原文的定義。', true); }
+    var why = '';
+    try {
+      if (!(window.claude && window.claude.use)) why = 'noviewer';
+      else { sample = await window.claude.use('sample'); if (!sample) why = 'unavailable'; }
+    } catch (e) { sample = null; why = 'unavailable'; }
+    if (why) {
+      var note = why === 'noviewer'
+        ? '這個頁面不是在 Claude 的 artifact 檢視器裡開啟，所以沒有內建 AI。'
+        : 'Claude 沒有對這個頁面開放 AI（可能是這個帳號或組織未開放，或載入逾時）。';
+      $('aiNote').textContent = note + '已改用手動模式：複製提示詞到你的免費 AI，再把回覆貼回來。';
+      $('aiNote').hidden = false; $('manualSw').checked = true; $('manualSw').disabled = true;
+    }
     try { downloads = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null; $('save').hidden = !downloads; } catch (e) { downloads = null; }
     if (st.plan) { updateChecks(); drawDiagram(); }
   })();
+
 })();
 </script>
