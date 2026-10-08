@@ -119,7 +119,9 @@ select { font: inherit; color: var(--ink); background: var(--bg); border: 1px so
   <section class="panel" aria-label="設定">
     <div><span class="lbl">習慣</span><div class="chips" id="habits"></div></div>
     <div><span class="lbl">年段（決定錯誤範例的層次）</span><div class="bands" id="bands"></div></div>
-    <div class="f"><label for="topic">教學情境（選填）</label><input type="text" id="topic" maxlength="120" placeholder="留空，讓 AI 自己想一個具體、少見但真實的情境"></div>
+    <div class="f"><label for="topic">教學情境（選填）</label>
+      <div class="chips" id="settings" role="group" aria-label="情境場域"></div>
+      <input type="text" id="topic" maxlength="120" placeholder="留空，讓 AI 自己想一個具體、少見但真實的情境"></div>
     <div class="row">
       <button class="btn" id="gen" type="button">生成教案</button>
       <button class="btn ghost" id="stop" type="button" hidden>停止</button>
@@ -193,20 +195,37 @@ __DG__
     { n: '中年段', g: '國中', lv: '歸因層次', tip: '把決定權或責任交給別人。' },
     { n: '高年段', g: '高年級／國中', lv: '策略層次', tip: '重複無效動作、放棄溝通、折衷。' }
   ];
-  var NUDGES = ['下課十分鐘', '營養午餐', '打掃時間', '分組報告', '班級群組', '體育課', '社團活動', '段考前一週', '校外教學', '調座位', '借東西沒還', '比賽輸了之後', '早自習', '手機與零用錢', '值日生', '才藝表演前'];
+  var NUDGES = {
+    '學校': ['下課十分鐘', '營養午餐', '打掃時間', '分組報告', '班級群組', '體育課', '社團活動', '段考前一週', '校外教學', '調座位', '借東西沒還', '比賽輸了之後', '早自習', '值日生', '才藝表演前'],
+    '家庭': ['寫完功課才能玩手機', '週末誰洗碗', '跟手足搶遙控器', '零用錢怎麼花', '早上出門前的十分鐘', '晚餐桌上的對話', '被爸媽唸之後', '房間整理', '補習與興趣的取捨', '全家出遊前的決定', '幫忙照顧弟妹', '睡前的拖延'],
+    '': ['下課十分鐘', '營養午餐', '分組報告', '班級群組', '段考前一週', '借東西沒還', '手機與零用錢', '早上出門前的十分鐘', '被爸媽唸之後', '週末誰洗碗']
+  };
+  var SETTINGS = ['學校', '家庭'];
   var FIELDS = ['scene', 'def', 'hear', 'event', 'failure', 'ask', 'out', 'tool', 'toolDesc', 'ifthen', 'when', 'revisit'];
   var downloads = null;
   var KEY = 'sevenhabits-generator-v1';
 
   var $ = function (id) { return document.getElementById(id); };
-  var st = { habit: 0, band: 1, topic: '', plan: null, nudge: '', view: 'fill' };
+  var st = { habit: 0, band: 1, topic: '', setting: '', plan: null, nudge: '', view: 'fill' };
   var sample = null, ctl = null;
 
   function load() { try { var s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') st = Object.assign(st, s); } catch (e) {} }
   function persist() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} }
   function setStatus(msg, err, id) { var el = $(id || 'status'); el.textContent = msg || ''; el.className = 'status' + (err ? ' err' : ''); }
 
+  function renderSettings() {
+    var box = $('settings'); box.innerHTML = '';
+    SETTINGS.forEach(function (n) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip'; b.setAttribute('aria-pressed', st.setting === n);
+      b.textContent = n + '情境';
+      b.onclick = function () { st.setting = st.setting === n ? '' : n; persist(); renderSettings(); };
+      box.appendChild(b);
+    });
+  }
+
   function renderControls() {
+    renderSettings();
     $('habits').innerHTML = '';
     HABITS.forEach(function (h, i) {
       var b = document.createElement('button');
@@ -359,9 +378,12 @@ __DG__
   function buildPrompt() {
     var h = HABITS[st.habit], b = BANDS[st.band];
     var ref = h.ex[st.band] || h.ex[0] || {};
-    var scene = st.topic.trim()
+    var field = st.setting === '學校' ? '場域：學校。事件發生在校園裡（教室、走廊、操場、與同學老師之間），教師事件用老師在學校的失敗經驗。'
+      : st.setting === '家庭' ? '場域：家庭。事件發生在家裡（與父母、手足、家人的相處，作息、手機、家事、零用錢等），教師事件用老師自己在家庭裡的失敗經驗；判斷題與工具內容也要用家裡的情況。'
+      : '';
+    var scene = (st.topic.trim()
       ? '教學情境（老師指定）：' + st.topic.trim()
-      : '老師沒有指定情境。請你自己發想一個貼近學生、具體、少見但真實的情境（這次的靈感方向：' + st.nudge + '，可以不採用）。';
+      : '老師沒有指定情境。請你自己發想一個貼近學生、具體、少見但真實的情境（這次的靈感方向：' + st.nudge + '，可以不採用）。') + (field ? '\n' + field : '');
     var sampleJson = JSON.stringify({ def: ref.def, judgments: ref.judgments, hear: ref.hear, event: ref.event, ask: ref.ask, out: ref.out, tool: ref.tool, ifthen: ref.ifthen, revisit: ref.revisit });
     return [
       '你是品格教育與社會情緒學習的課程設計者，要為台灣的老師設計一份「定義、連結、應用」三步驟的完整教案。',
@@ -417,7 +439,8 @@ __DG__
 
   async function generate() {
     st.topic = $('topic').value;
-    st.nudge = NUDGES[Math.floor(Math.random() * NUDGES.length)];
+    var pool = NUDGES[st.setting] || NUDGES[''];
+    st.nudge = pool[Math.floor(Math.random() * pool.length)];
     persist();
     var o = await run(buildPrompt(), '設計中');
     if (!o || typeof o !== 'object') return;
