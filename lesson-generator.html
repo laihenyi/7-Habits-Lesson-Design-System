@@ -68,7 +68,7 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
 .nudge { color: var(--muted); font-size: 13px; }
 
 .sheet { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
-.sheet[hidden] { display: none; }
+.sheet[hidden], .panel[hidden], .empty[hidden] { display: none; }
 .sheet-head { padding: 22px 20px 16px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid var(--line); }
 .kicker { color: var(--accent); font-weight: 700; font-size: 13px; letter-spacing: .06em; }
 .sheet-head h2 { font: 800 clamp(22px, 4vw, 28px)/1.3 var(--font-display); margin: 0; text-wrap: balance; }
@@ -100,6 +100,11 @@ textarea { resize: none; overflow: hidden; display: block; line-height: 1.7; }
 .foot { padding: 16px 20px 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-top: 1px solid var(--line); }
 .empty { color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 28px 20px; text-align: center; }
 select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; }
+.opts { display: flex; flex-direction: column; gap: 8px; }
+.opt { text-align: left; font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 3px; }
+.opt b { font-weight: 600; line-height: 1.6; }
+.opt span { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.opt[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
 .dgm { overflow-x: auto; border-radius: 8px; background: var(--d-paper); }
 .dgm svg { display: block; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
@@ -123,13 +128,25 @@ select { font: inherit; color: var(--ink); background: var(--bg); border: 1px so
       <div class="chips" id="settings" role="group" aria-label="情境場域"></div>
       <input type="text" id="topic" maxlength="120" placeholder="留空，讓 AI 自己想一個具體、少見但真實的情境"></div>
     <div class="row">
-      <button class="btn" id="gen" type="button">生成教案</button>
+      <button class="btn" id="gen" type="button">下一步：選一句定義</button>
       <button class="btn ghost" id="stop" type="button" hidden>停止</button>
       <span class="status" id="status" role="status"></span>
     </div>
   </section>
 
-  <div class="empty" id="empty">選好習慣與對象，按「生成教案」。每次生成都會換一個情境。</div>
+  <section class="panel" id="defPanel" aria-label="定義" hidden>
+    <div><span class="lbl">選一句定義（依各習慣的高效能思維與實踐轉化，選定後才生成完整教案）</span>
+      <div class="opts" id="defOpts" role="group" aria-label="定義候選"></div></div>
+    <div class="f"><label for="defEdit">就用這句，或自己改幾個字</label><textarea id="defEdit" rows="2"></textarea></div>
+    <div class="row">
+      <button class="btn" id="go" type="button" disabled>用這句定義生成完整教案</button>
+      <button class="btn ghost" id="moreDefs" type="button">再給我四句</button>
+      <button class="btn ghost" id="stop2" type="button" hidden>停止</button>
+      <span class="status" id="def-status" role="status"></span>
+    </div>
+  </section>
+
+  <div class="empty" id="empty">選好習慣與對象，按「下一步」，先選一句定義，再生成完整教案。每次都會換一個情境。</div>
 
   <article class="sheet" id="sheet" hidden>
     <div class="sheet-head">
@@ -173,7 +190,8 @@ select { font: inherit; color: var(--ink); background: var(--bg); border: 1px so
     </section>
 
     <div class="foot">
-      <button class="btn" id="regen" type="button">換一個情境重生成</button>
+      <button class="btn" id="regen" type="button">沿用這句定義，換個情境重生成</button>
+      <button class="btn ghost" id="redef" type="button">重選定義</button>
       <button class="btn ghost" id="fix" type="button" hidden>請 AI 修正未通過項目</button>
       <button class="btn ghost" id="copy" type="button">複製全文</button>
       <button class="btn ghost" id="save" type="button" hidden>下載 .md</button>
@@ -746,12 +764,23 @@ var DG = (function () {
       '': ['分組報告的分工', '班群截圖', '段考前一週', '手機使用的協議', '與父母爭執之後', '零用錢與打工'] }
   ];
   var SETTINGS = ['學校', '家庭'];
+  // 各習慣的高效能思維與實踐（老師提供的附件；附件沒有習慣八）
+  var PRINC = [
+    { p: '責任、選擇、當責、主動性、善用資源', m: '我有充分的自由做選擇，並為自己的福祉負責。', r: ['三思而後行，根據原則和所期望的結果做出反應', '使用主動積極的語言', '專注於你的影響圈', '成為轉型人'] },
+    { p: '願景、承諾、目的', m: '清楚定義自己生命的願景和目標，使生命不再一樣。', r: ['行動之前先確認預期結果', '創造個人使命宣言，並以它為人生藍圖'] },
+    { p: '專注、誠信、紀律、優先順序', m: '我將時間花在最重要的事情上。', r: ['專注於最優先的「要事」', '排除不重要的事情', '進行每週計畫', '真誠抉擇當下'] },
+    { p: '互惠、公平、富足', m: '有足夠的資源，你有、我有、大家都能有。', r: ['保持富足的心態', '平衡勇氣與體諒', '考慮他人的贏及自己的贏', '建立雙贏協議'] },
+    { p: '尊重、互相理解、同理心、勇氣', m: '如果我先努力理解別人，我對他們將會有更大的影響力。', r: ['練習同理心傾聽', '以尊重的態度尋求別人的理解'] },
+    { p: '創新、合作、多元化、謙虛', m: '讓我們提出比我們各自所能想出的更好的方法。', r: ['珍視差異', '尋求第三選擇'] },
+    { p: '更新、持續改進、平衡', m: '我每天都花時間投資在自己身上，因為這讓我有能力做所有其他事情。', r: ['每日實現個人成功'] }
+  ];
+  var DEFLEN = [20, 40, 50];
   var FIELDS = ['scene', 'def', 'hear', 'event', 'failure', 'ask', 'out', 'tool', 'toolDesc', 'ifthen', 'when', 'revisit'];
   var downloads = null;
   var KEY = 'sevenhabits-generator-v1';
 
   var $ = function (id) { return document.getElementById(id); };
-  var st = { habit: 0, band: 1, topic: '', setting: '', plan: null, nudge: '', view: 'fill' };
+  var st = { habit: 0, band: 1, topic: '', setting: '', defs: null, chosen: '', plan: null, nudge: '', view: 'fill' };
   var sample = null, ctl = null;
 
   function load() { try { var s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') st = Object.assign(st, s); } catch (e) {} }
@@ -764,7 +793,7 @@ var DG = (function () {
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'chip'; b.setAttribute('aria-pressed', st.setting === n);
       b.textContent = n + '情境';
-      b.onclick = function () { st.setting = st.setting === n ? '' : n; persist(); renderSettings(); };
+      b.onclick = function () { st.setting = st.setting === n ? '' : n; resetDefs(); persist(); renderSettings(); };
       box.appendChild(b);
     });
   }
@@ -776,7 +805,7 @@ var DG = (function () {
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'chip'; b.setAttribute('aria-pressed', i === st.habit);
       b.textContent = '習慣' + NUM[i] + '　' + h.name;
-      b.onclick = function () { st.habit = i; persist(); renderControls(); };
+      b.onclick = function () { st.habit = i; resetDefs(); persist(); renderControls(); };
       $('habits').appendChild(b);
     });
     $('bands').innerHTML = '';
@@ -787,7 +816,7 @@ var DG = (function () {
       var s = document.createElement('span'); s.textContent = '用語：' + b.ui;
       var u = document.createElement('span'); u.textContent = '生活：' + b.lf;
       el.append(t, s, u);
-      el.onclick = function () { st.band = i; persist(); renderControls(); };
+      el.onclick = function () { st.band = i; resetDefs(); persist(); renderControls(); };
       $('bands').appendChild(el);
     });
   }
@@ -921,6 +950,35 @@ var DG = (function () {
     }).join('\n');
   }
 
+  function defBase() {
+    var p = PRINC[st.habit], h = HABITS[st.habit];
+    if (!p) return '（附件沒有習慣' + NUM[st.habit] + '的資料，請依下列既有範例的定義轉化）' + JSON.stringify(h.ex.map(function (e) { return e.def; }));
+    return '原則：' + p.p + '\n高效能思維：' + p.m + '\n高效能實踐：' + p.r.map(function (x, i) { return (i + 1) + '. ' + x; }).join('；');
+  }
+  function settingLine() {
+    var t = st.topic.trim();
+    return (t ? '教學情境（老師指定）：' + t : '') + (st.setting ? (t ? '；' : '') + '場域：' + st.setting : '') || '情境未指定，用貼近這個對象日常生活的語言即可。';
+  }
+  function buildDefPrompt() {
+    var h = HABITS[st.habit], b = BANDS[st.band];
+    return [
+      '你是品格教育的課程設計者。請把下列習慣的「高效能思維與實踐」轉化成「一句話的定義」，給老師挑選；老師選定後，才會以這句定義設計整堂課。',
+      '習慣' + NUM[st.habit] + '「' + h.name + '」',
+      defBase(),
+      '對象：' + b.n + '（' + b.g + '）。心智發展：' + b.dev,
+      '對象的生活境遇：' + b.life,
+      '用語要求：' + b.lang.split('；')[0],
+      settingLine(),
+      '要求：',
+      '1. 給 4 個候選，各從不同角度轉化：第 1 個轉化「高效能思維」，其餘分別轉化不同的「高效能實踐」或「原則」；只有一項實踐時，改從原則的不同面向。',
+      '2. 格式：「' + h.name + '是「…」。」，用「」標出學生要記住的部分；一句話，不超過 ' + DEFLEN[st.band] + ' 個字（不含習慣名）。',
+      '3. 用這個對象聽得懂的話，不要把附件的詞原封不動搬來；對低年段，「福祉」「影響圈」「願景」這類詞要換成孩子的說法。',
+      '4. 只轉化附件有的內容，不新增與這個習慣無關的概念。',
+      '5. 四句彼此要明顯不同，不要只是換幾個字。',
+      '只輸出一個 JSON 物件，不要任何其他文字：{"options":[{"def":"定義一句話","basis":"依據：高效能思維／實踐2「…」／原則「…」"}×4]}'
+    ].join('\n');
+  }
+
   function buildPrompt() {
     var h = HABITS[st.habit], b = BANDS[st.band];
     var refs = b.refs.map(function (k) { return h.ex[k]; }).filter(Boolean);
@@ -939,6 +997,8 @@ var DG = (function () {
       '用語與內容要求：' + b.lang,
       '工具選擇：' + b.tools,
       scene,
+      '【已選定的定義】老師已經選定這一句，def 欄必須原文照用、不可改寫；判斷題、教師事件、提問與工具都要緊扣這句定義：' + st.chosen,
+      '此習慣的原則與實踐（設計時對照）：' + defBase(),
       '創意要求：先在心裡想三個不同的情境角度，選最具體、最不老套的那一個；不要沿用參考範例的情境或句子。',
       '硬性規則：',
       '1. 繁體中文、台灣用語，語氣平實，不用口號和串場詞。',
@@ -954,8 +1014,9 @@ var DG = (function () {
   }
 
   function busy(on, msg, sid) {
-    $('gen').disabled = on; $('regen').disabled = on; $('fix').disabled = on; $('redraw').disabled = on;
-    $('stop').hidden = !on;
+    $('gen').disabled = on; $('regen').disabled = on; $('fix').disabled = on; $('redraw').disabled = on; $('moreDefs').disabled = on; $('redef').disabled = on;
+    $('go').disabled = on || !st.chosen.trim();
+    $('stop').hidden = !on; $('stop2').hidden = !on;
     setStatus('');
     setStatus('', false, 'foot-status');
     if (sid) setStatus(msg || '', false, sid); else setStatus(msg || '');
@@ -987,14 +1048,53 @@ var DG = (function () {
     } finally { var keep = $(sid || 'status').textContent; busy(false, keep, sid); }
   }
 
+  function resetDefs() { st.defs = null; st.chosen = ''; renderDefs(); }
+
+  function renderDefs() {
+    var panel = $('defPanel'), list = st.defs || [];
+    panel.hidden = !list.length;
+    var box = $('defOpts'); box.innerHTML = '';
+    list.forEach(function (o) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'opt';
+      b.setAttribute('aria-pressed', st.chosen === o.def);
+      var t = document.createElement('b'); t.textContent = o.def;
+      var s2 = document.createElement('span'); s2.textContent = o.basis;
+      b.append(t, s2);
+      b.onclick = function () { st.chosen = o.def; persist(); renderDefs(); };
+      box.appendChild(b);
+    });
+    var ed = $('defEdit'); if (ed.value !== st.chosen) ed.value = st.chosen;
+    $('go').disabled = !st.chosen.trim();
+    requestAnimationFrame(function () { autosize(ed); });
+  }
+
+  async function getDefs() {
+    st.topic = $('topic').value; persist();
+    var h = HABITS[st.habit], p = PRINC[st.habit], list = [];
+    if (p) list.push({ def: h.name + '是「' + p.m.replace(/。$/, '') + '」。', basis: '附件原文：高效能思維（可直接用，或改成對象聽得懂的話）' });
+    st.defs = list; st.chosen = ''; renderDefs();
+    var o = await run(buildDefPrompt(), '轉化定義中', 'def-status');
+    var opts = o && Array.isArray(o.options) ? o.options : [];
+    var seen = {}; list.forEach(function (x) { seen[x.def] = 1; });
+    opts.forEach(function (x) {
+      x = x || {}; var d = String(x.def || '').trim(), bs = String(x.basis || '').trim();
+      if (d && !seen[d]) { seen[d] = 1; list.push({ def: d, basis: bs || '依據：高效能思維與實踐' }); }
+    });
+    st.defs = list; persist(); renderDefs();
+    if (o) setStatus('選一句，也可以在下面改幾個字。', false, 'def-status');
+    else if (list.length) setStatus((($('def-status').textContent) || '') + ' 目前只有附件原文可選。', true, 'def-status');
+    $('defPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   async function generate() {
+    if (!st.chosen.trim()) { await getDefs(); return; }
     st.topic = $('topic').value;
     var np = NUDGES[st.band] || NUDGES[1], pool = np[st.setting] || np[''];
     st.nudge = pool[Math.floor(Math.random() * pool.length)];
     persist();
     var o = await run(buildPrompt(), '設計中');
     if (!o || typeof o !== 'object') return;
-    st.plan = normalize(o); persist(); renderPlan();
+    st.plan = normalize(o); st.plan.def = st.chosen.trim(); persist(); renderPlan();
     setStatus('完成。內容都可以直接修改。');
     $('sheet').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -1057,10 +1157,16 @@ var DG = (function () {
       setStatus('已送出下載。', false, 'dgm-status');
     } catch (e) { if (!e || e.code !== 'declined') setStatus('下載失敗。', true, 'dgm-status'); }
   };
-  $('gen').onclick = generate;
+  $('gen').onclick = getDefs;
+  $('moreDefs').onclick = getDefs;
+  $('redef').onclick = getDefs;
+  $('go').onclick = generate;
   $('regen').onclick = generate;
+  $('defEdit').addEventListener('input', function () { st.chosen = $('defEdit').value; autosize($('defEdit')); $('go').disabled = !st.chosen.trim(); persist(); document.querySelectorAll('#defOpts .opt').forEach(function (b, i) { b.setAttribute('aria-pressed', !!st.defs && st.defs[i] && st.defs[i].def === st.chosen); }); });
+  $('topic').addEventListener('change', function () { st.topic = $('topic').value; resetDefs(); persist(); });
   $('fix').onclick = fixIt;
   $('stop').onclick = function () { if (ctl) ctl.abort(); };
+  $('stop2').onclick = function () { if (ctl) ctl.abort(); };
   $('copy').onclick = async function () {
     var txt = toText();
     try { await navigator.clipboard.writeText(txt); setStatus('已複製。', false, 'foot-status'); }
@@ -1084,11 +1190,12 @@ var DG = (function () {
   try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { drawDiagram(); }); new MutationObserver(function () { drawDiagram(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch (e) {}
   $('topic').value = st.topic || '';
   renderControls();
+  renderDefs();
   renderPlan();
 
   (async function () {
     try { sample = (window.claude && window.claude.use) ? await window.claude.use('sample') : null; } catch (e) { sample = null; }
-    if (!sample) { $('gen').disabled = true; $('regen').disabled = true; setStatus('這個環境沒有 AI，請在 Claude 裡開啟這個頁面。', true); }
+    if (!sample) { $('regen').disabled = true; setStatus('這個環境沒有 AI，請在 Claude 裡開啟這個頁面。只能先看附件原文的定義。', true); }
     try { downloads = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null; $('save').hidden = !downloads; } catch (e) { downloads = null; }
     if (st.plan) { updateChecks(); drawDiagram(); }
   })();
