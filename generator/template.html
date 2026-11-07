@@ -112,6 +112,10 @@ select { font: inherit; color: var(--ink); background: var(--bg); border: 1px so
 .dlg { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; max-width: 720px; width: 100%; max-height: 100%; overflow: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
 .steps-list { margin: 0; padding-left: 20px; color: var(--muted); font-size: 14px; }
 textarea.scroll { overflow: auto; resize: vertical; }
+.wsprev { padding: 20px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.a4wrap { position: relative; width: 100%; max-width: 794px; margin: 0 auto; overflow: hidden; }
+.a4wrap .a4 { position: absolute; top: 0; left: 0; transform-origin: 0 0; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+__WSCSS__
 .dgm { overflow-x: auto; border-radius: 8px; background: var(--d-paper); }
 .dgm svg { display: block; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
@@ -202,9 +206,29 @@ textarea.scroll { overflow: auto; resize: vertical; }
       <button class="btn" id="regen" type="button">沿用這句定義，換個情境重生成</button>
       <button class="btn ghost" id="redef" type="button">重選定義</button>
       <button class="btn ghost" id="fix" type="button" hidden>請 AI 修正未通過項目</button>
+      <button class="btn ghost" id="wsOpen" type="button">設計學習單</button>
       <button class="btn ghost" id="copy" type="button">複製全文</button>
       <button class="btn ghost" id="save" type="button" hidden>下載 .md</button>
       <span class="status" id="foot-status" role="status"></span>
+    </div>
+  </article>
+
+  <article class="sheet" id="wsPanel" hidden>
+    <div class="sheet-head">
+      <span class="kicker">學生學習單・單張 A4</span>
+      <h2 id="wsTitle">學習單</h2>
+      <div class="row">
+        <button class="btn" id="wsAI" type="button">請 AI 設計學生用語</button>
+        <button class="btn ghost" id="wsPlain" type="button">直接排版（不用 AI）</button>
+        <span class="status" id="ws-status" role="status"></span>
+      </div>
+      <p class="hint">內容來自上面的教案：定義填空、三題判斷、我的事件、工具圖、if-then 與回顧。改教案後再按一次即可更新。</p>
+    </div>
+    <div class="wsprev" id="wsPrev"><div class="a4wrap" id="a4wrap"></div></div>
+    <div class="foot">
+      <button class="btn" id="wsDl" type="button">下載學習單（HTML，可列印 A4）</button>
+      <button class="btn ghost" id="wsCopy" type="button">複製 HTML</button>
+      <span class="status" id="ws-foot" role="status"></span>
     </div>
   </article>
 </div>
@@ -228,6 +252,9 @@ textarea.scroll { overflow: auto; resize: vertical; }
 <script type="application/json" id="habits-data">__HABITS__</script>
 <script>
 __DG__
+</script>
+<script>
+__WS__
 </script>
 <script>
 (function () {
@@ -357,6 +384,7 @@ __DG__
     requestAnimationFrame(function () { FIELDS.forEach(function (k) { autosize($(k)); }); });
     updateChecks();
     drawDiagram();
+    renderWs();
   }
 
   function buildToolSelect() {
@@ -513,7 +541,7 @@ __DG__
   }
 
   function busy(on, msg, sid) {
-    $('gen').disabled = on; $('regen').disabled = on; $('fix').disabled = on; $('redraw').disabled = on; $('moreDefs').disabled = on; $('redef').disabled = on;
+    $('gen').disabled = on; $('regen').disabled = on; $('fix').disabled = on; $('redraw').disabled = on; $('moreDefs').disabled = on; $('redef').disabled = on; $('wsAI').disabled = on; $('wsPlain').disabled = on;
     $('go').disabled = on || !st.chosen.trim();
     $('stop').hidden = !on; $('stop2').hidden = !on;
     setStatus('');
@@ -646,6 +674,66 @@ __DG__
     setStatus('已修正。');
   }
 
+  function wsCtx() {
+    var t = DG.toolFor(st.plan && st.plan.tool), b = BANDS[st.band];
+    return { habitNum: NUM[st.habit], habitName: HABITS[st.habit].name, band: st.band, bandLabel: b.n + '（' + b.g + '）', toolKey: t ? t.key : '', toolName: t ? t.name : (st.plan.tool || '工具'), DG: DG };
+  }
+  var WS_SHAPE = '{"title":"學習單標題，12 字內","intro":"給學生的一句開場，20 字內","defBlank":{"text":"教案的定義原句，把學生要記住的關鍵詞換成 ＿＿＿（只挖一處）","answer":"被挖掉的關鍵詞"},"judgments":["改寫給學生看的情況一，不給答案","情況二","情況三"],"eventPrompt":"請學生寫自己事件的指示，一句","eventHints":["寫的時候要包含的要點，2~3 個，各 6 字內"],"ifthen":"if-then 句型，把要學生填的部分換成 ＿＿＿，如「當＿＿＿，我會＿＿＿。」","reflect":"回顧時只問的那一句","toolHint":"工具圖怎麼填，一句"}';
+  function buildWsPrompt() {
+    var p = st.plan, b = BANDS[st.band], t = DG.toolFor(p.tool);
+    return [
+      '你是品格教育的課程設計者。請把下面這份教案轉成「學生用的單張 A4 學習單」要用的文字。學習單的版面已經固定（定義填空、三題判斷、我的事件、工具圖、if-then、回顧），你只負責學生看得懂的字句。',
+      '習慣' + NUM[st.habit] + '「' + HABITS[st.habit].name + '」。對象：' + b.n + '（' + b.g + '）。心智發展：' + b.dev,
+      '用語要求：' + b.lang,
+      '教案：' + JSON.stringify({ title: p.title, scene: p.scene, def: p.def, judgments: p.judgments.map(function (j) { return j.q; }), hear: p.hear, out: p.out, tool: p.tool, toolDesc: p.toolDesc, ifthen: p.ifthen, revisit: p.revisit }),
+      t ? '工具說明：' + t.desc : '',
+      '要求：',
+      '1. 全部用對學生說話的口吻，句子短，不出現「教師」「教案」這類字。',
+      '2. defBlank.text 必須是教案定義的原句，只把一個關鍵詞換成 ＿＿＿；answer 是那個詞。',
+      '3. judgments 保留原本三題的情況，改成學生讀得懂的描述，不要透露答案。',
+      '4. ifthen 是句型骨架，留空給學生填，不要替學生寫好。',
+      '5. 不新增教案沒有的情境或事實。',
+      '只輸出一個 JSON 物件，不要任何其他文字：' + WS_SHAPE
+    ].filter(Boolean).join('\n');
+  }
+  function wsScale() {
+    var wrap = $('a4wrap'), a4 = wrap.firstElementChild; if (!a4) return;
+    var sc = Math.min(1, wrap.clientWidth / 794);
+    a4.style.transform = 'scale(' + sc + ')'; wrap.style.height = Math.round(1123 * sc) + 'px';
+  }
+  function renderWs() {
+    var has = !!(st.plan && st.plan.ws);
+    $('wsPanel').hidden = !has; if (!has) return;
+    var ws = st.plan.ws, ctx = wsCtx();
+    $('wsTitle').textContent = ws.title;
+    $('wsAI').textContent = ws.mode === 'ai' ? '請 AI 重新設計' : '請 AI 設計學生用語';
+    $('a4wrap').innerHTML = WS.page(ws, ctx);
+    var a4 = $('a4wrap').firstElementChild, lvl = WS.fit ? WS.fit(a4) : 0;
+    wsScale();
+    setStatus(lvl >= 3 ? '內容太多，工具圖已移出這一頁，請另外印工具圖，或縮短教案文字。' : lvl ? '內容較多，已改用較緊湊的版面放進一頁。' : '一頁放得下。', lvl >= 3, 'ws-status');
+  }
+  async function wsDesign(useAI) {
+    if (!st.plan) return;
+    var ws = null;
+    if (useAI) {
+      var o = await run(buildWsPrompt(), '設計學習單中', 'ws-status');
+      if (!o || typeof o !== 'object') return;
+      ws = WS.clean(o, st.plan, wsCtx());
+    } else ws = WS.fromPlan(st.plan, wsCtx());
+    st.plan.ws = ws; persist(); renderWs();
+    $('wsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function wsDoc() { return WS.doc(st.plan.ws, wsCtx()); }
+  function wsFile() { return '學習單-習慣' + NUM[st.habit] + '-' + (st.plan.ws.title || HABITS[st.habit].name) + '.html'; }
+  async function wsDownload() {
+    var html = wsDoc();
+    try {
+      if (downloads) { await downloads.save({ filename: wsFile(), data: html }); setStatus('已送出下載。打開檔案後按「列印／存成 PDF」。', false, 'ws-foot'); return; }
+      var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' })); a.download = wsFile(); document.body.appendChild(a); a.click(); a.remove();
+      setStatus('已下載。打開檔案後按「列印／存成 PDF」。若沒有反應，請用「複製 HTML」存成 .html 檔。', false, 'ws-foot');
+    } catch (e) { if (!e || e.code !== 'declined') setStatus('下載失敗，請用「複製 HTML」。', true, 'ws-foot'); }
+  }
+
   function toText() {
     var p = st.plan, h = HABITS[st.habit], b = BANDS[st.band];
     var VL = { '是': '是', '不是': '不是', '再問': '再問一句' };
@@ -703,6 +791,12 @@ __DG__
   };
   $('mCancel').onclick = function () { closeManual(null); };
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('mDlg').hidden) closeManual(null); });
+  $('wsOpen').onclick = function () { if (st.plan && st.plan.ws) { renderWs(); $('wsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); } else wsDesign(false); };
+  $('wsAI').onclick = function () { wsDesign(true); };
+  $('wsPlain').onclick = function () { wsDesign(false); };
+  $('wsDl').onclick = wsDownload;
+  $('wsCopy').onclick = async function () { var ok = await copyText(wsDoc()); setStatus(ok ? '已複製 HTML。貼到記事本存成 .html，用瀏覽器打開再列印。' : '無法自動複製。', !ok, 'ws-foot'); };
+  window.addEventListener('resize', wsScale);
   $('gen').onclick = getDefs;
   $('moreDefs').onclick = getDefs;
   $('redef').onclick = getDefs;

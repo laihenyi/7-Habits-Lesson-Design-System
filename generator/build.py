@@ -16,7 +16,11 @@ assert habits and len(habits) == 8
 hj = json.dumps(habits, ensure_ascii=False).replace('</', '<\\/')
 t = open(os.path.join(here, 'template.html'), encoding='utf8').read()
 dg = open(os.path.join(here, 'diagrams.js'), encoding='utf8').read()
-assert '</script' not in dg
-out = t.replace('__HABITS__', hj).replace('__DG__', dg)
+ws = open(os.path.join(here, 'worksheet.js'), encoding='utf8').read()
+assert '</script' not in dg and '</script' not in ws
+import re as _re
+wscss = _re.search(r"var CSS = \[\n(.*?)\n  \]\.join", ws, _re.S).group(1)
+wscss = '\n'.join(l.strip().strip(',').strip("'") for l in wscss.split('\n'))
+out = t.replace('__HABITS__', hj).replace('__DG__', dg).replace('__WS__', ws).replace('__WSCSS__', wscss)
 open(os.path.join(here, '..', 'lesson-generator.html'), 'w', encoding='utf8').write(out)
 print(len(out))
