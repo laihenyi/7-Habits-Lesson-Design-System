@@ -1267,6 +1267,22 @@ var WS = (function () {
   }
 
   function useManual() { return !sample || st.manual; }
+  // 把聊天 artifact 的 window.claude.complete 包成和 sample 相同的介面（不支援串流與中途停止）
+  function chatSample() {
+    var f = function (input) { return window.claude.complete(String(input)).then(function (t) { return { text: String(t), truncated: false }; }); };
+    f.json = function (input, opts) {
+      var p = String(input) + '\n\n（只輸出合法的 JSON，不要任何說明文字。）';
+      return Promise.resolve(window.claude.complete(p)).then(function (t) {
+        t = String(t == null ? '' : t);
+        if (opts && opts.onText) { try { opts.onText({ text: t, delta: t }); } catch (e) {} }
+        var o = parseLoose(t);
+        if (!o) throw { code: 'invalid_json', message: 'no json', text: t };
+        return o;
+      }, function (e) { throw { code: (e && e.code) || 'upstream_error', message: String((e && e.message) || e) }; });
+    };
+    f.chat = true;
+    return f;
+  }
   var mResolve = null;
   function parseLoose(txt) {
     txt = String(txt || '').trim(); if (!txt) return null;
@@ -1544,9 +1560,11 @@ var WS = (function () {
   (async function () {
     var why = '';
     try {
-      if (!(window.claude && window.claude.use)) why = 'noviewer';
-      else { sample = await window.claude.use('sample'); if (!sample) why = 'unavailable'; }
+      if (window.claude && window.claude.use) { sample = await window.claude.use('sample'); if (!sample) why = 'unavailable'; }
+      else why = 'noviewer';
     } catch (e) { sample = null; why = 'unavailable'; }
+    // claude.ai 聊天裡的 artifact：只有 window.claude.complete，用打開者自己的帳號
+    if (!sample && window.claude && typeof window.claude.complete === 'function') { sample = chatSample(); why = ''; }
     var diag = '';
     if (why) {
       var framed = false; try { framed = window.parent !== window; } catch (e) { framed = true; }
