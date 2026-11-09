@@ -555,6 +555,7 @@ __WS__
     if (c === 'rate_limited') return '呼叫太頻繁或已達使用上限，請稍後再按一次。';
     if (c === 'session_expired') return '登入已過期，請重新整理頁面並登入。';
     if (c === 'invalid_json') return 'AI 回傳的格式不完整，請再按一次生成。';
+    if (c === 'refused') return 'Claude 沒有回答這個請求，請調整情境文字後再試。';
     return '生成失敗，請再按一次。';
   }
 
@@ -575,6 +576,53 @@ __WS__
     f.chat = true;
     return f;
   }
+  // 聊天 artifact 的另一種介面：不帶金鑰呼叫 Messages API，由 claude.ai 代為驗證，算在打開者自己的額度。
+  // 其他環境（一般網站、Claude Code 發佈的連結）這個請求會被擋下，回報 no_builtin 後改用手動模式。
+  var FETCH_MODELS = ['claude-sonnet-5-5', 'claude-opus-5-5', 'claude-sonnet-4-20250514'];
+  function fetchSample() {
+    var model = '';
+    async function call(prompt, signal) {
+      var list = model ? [model] : FETCH_MODELS, last = 0;
+      for (var i = 0; i < list.length; i++) {
+        var res;
+        try {
+          res = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: signal,
+            body: JSON.stringify({ model: list[i], max_tokens: 16000, messages: [{ role: 'user', content: prompt }] })
+          });
+        } catch (e) {
+          if (e && e.name === 'AbortError') throw { code: 'cancelled', message: 'aborted' };
+          throw { code: model ? 'upstream_error' : 'no_builtin', message: '連線被擋下' };
+        }
+        if (res.ok) {
+          var data = await res.json().catch(function () { return null; });
+          if (!data || !Array.isArray(data.content)) throw { code: model ? 'upstream_error' : 'no_builtin', message: '回應格式不符' };
+          model = list[i];
+          if (data.stop_reason === 'refusal') throw { code: 'refused', message: 'refusal' };
+          var text = data.content.filter(function (b) { return b && b.type === 'text'; }).map(function (b) { return b.text; }).join('');
+          if (!text.trim()) throw { code: 'empty_completion', message: 'empty' };
+          return text;
+        }
+        last = res.status;
+        if (res.status === 429) throw { code: 'rate_limited', message: 'HTTP 429' };
+        if (res.status >= 500) throw { code: 'upstream_error', message: 'HTTP ' + res.status };
+        // 其餘（400／401／403／404）可能是這個模型代號不被接受，換下一個再試
+      }
+      throw { code: model ? 'upstream_error' : 'no_builtin', message: 'HTTP ' + last };
+    }
+    var f = function (input, opts) { return call(String(input), opts && opts.signal).then(function (t) { return { text: t, truncated: false }; }); };
+    f.json = function (input, opts) {
+      return call(String(input) + '\n\n（只輸出合法的 JSON，不要任何說明文字。）', opts && opts.signal).then(function (t) {
+        if (opts && opts.onText) { try { opts.onText({ text: t, delta: t }); } catch (e) {} }
+        var o = parseLoose(t);
+        if (!o) throw { code: 'invalid_json', message: 'no json', text: t };
+        return o;
+      });
+    };
+    f.probe = true;
+    return f;
+  }
+  function aiNote(text, warn) { var n = $('aiNote'); n.textContent = text; n.hidden = !text; n.style.color = warn ? '' : 'var(--muted)'; }
   var mResolve = null;
   function parseLoose(txt) {
     txt = String(txt || '').trim(); if (!txt) return null;
@@ -621,8 +669,15 @@ __WS__
         signal: ctl.signal, cache: false,
         onText: function (u) { setStatus(label + '　已寫 ' + u.text.length + ' 字　' + Math.round((Date.now() - t0) / 1000) + ' 秒', false, sid); }
       });
+      if (sample && sample.probe) { sample.probe = false; aiNote('AI：使用 Claude，算在你自己的帳號額度。'); }
       return data;
     } catch (e) {
+      if (e && e.code === 'no_builtin') {
+        sample = null; $('manualSw').checked = true; $('manualSw').disabled = true;
+        aiNote('這個環境沒有 Claude 內建 AI（' + (e.message || '') + '），已改用手動模式：複製提示詞到你的免費 AI，再把回覆貼回來，一樣能完成教案。', true);
+        setStatus('', false, sid);
+        return manualRun(prompt, label, sid);
+      }
       setStatus(errCopy(e), e && e.code !== 'cancelled', sid);
       return null;
     } finally { var keep = $(sid || 'status').textContent; busy(false, keep, sid); }
@@ -856,7 +911,12 @@ __WS__
       else why = 'noviewer';
     } catch (e) { sample = null; why = 'unavailable'; }
     // claude.ai 聊天裡的 artifact：只有 window.claude.complete，用打開者自己的帳號
-    if (!sample && window.claude && typeof window.claude.complete === 'function') { sample = chatSample(); why = ''; }
+    var src = sample ? 'org' : '';
+    if (!sample && window.claude && typeof window.claude.complete === 'function') { sample = chatSample(); why = ''; src = 'chat'; }
+    // 沒有檢視器介面時（聊天 artifact 的新介面，或一般網站）：第一次生成時才試不帶金鑰的呼叫
+    if (!sample && why === 'noviewer') { sample = fetchSample(); why = ''; src = 'probe'; }
+    if (src === 'org' || src === 'chat') aiNote('AI：使用 Claude，算在你自己的帳號額度。');
+    if (src === 'probe') aiNote('AI：按「下一步」時會先嘗試 Claude 內建 AI（算在你自己的帳號額度）；這個環境若沒有，會自動改用手動模式。');
     var diag = '';
     if (why) {
       var framed = false; try { framed = window.parent !== window; } catch (e) { framed = true; }
@@ -869,8 +929,8 @@ __WS__
       var note = why === 'noviewer'
         ? '這個頁面不是在 Claude 的 artifact 檢視器裡開啟，所以沒有內建 AI。'
         : 'Claude 沒有對這個頁面開放內建 AI。依目前測試，這個連結的內建 AI 只開放給發佈者所屬組織的成員；用連結或 email 邀請打開的帳號（免費或付費都一樣）拿不到。';
-      $('aiNote').textContent = note + '已改用手動模式：按「下一步」後會跳出視窗，複製提示詞到你的免費 AI，再把回覆貼回來，一樣能完成教案。' + diag;
-      $('aiNote').hidden = false; $('manualSw').checked = true; $('manualSw').disabled = true;
+      aiNote(note + '已改用手動模式：按「下一步」後會跳出視窗，複製提示詞到你的免費 AI，再把回覆貼回來，一樣能完成教案。' + diag, true);
+      $('manualSw').checked = true; $('manualSw').disabled = true;
     }
     try { downloads = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null; $('save').hidden = !downloads; } catch (e) { downloads = null; }
     if (st.plan) { updateChecks(); drawDiagram(); }

@@ -23,4 +23,14 @@ wscss = _re.search(r"var CSS = \[\n(.*?)\n  \]\.join", ws, _re.S).group(1)
 wscss = '\n'.join(l.strip().strip(',').strip("'") for l in wscss.split('\n'))
 out = t.replace('__HABITS__', hj).replace('__DG__', dg).replace('__WS__', ws).replace('__WSCSS__', wscss)
 open(os.path.join(here, '..', 'lesson-generator.html'), 'w', encoding='utf8').write(out)
+
+# 完整文件版：給 claude.ai 聊天 artifact（上傳後請 Claude 原封不動建立）或一般靜態網站用。
+# 內容與上面相同，只是補上 doctype、head 與基本重設（Claude Code 的 Artifact 工具會自動補，聊天 artifact 不會）。
+cut = out.index('<div class="wrap">')
+head_part, body_part = out[:cut], out[cut:]
+full = ('<!doctype html>\n<html lang="zh-Hant">\n<head>\n<meta charset="utf-8">\n'
+        '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'
+        '<style>[hidden]{display:none!important}img{max-width:100%}</style>\n'
+        + head_part + '</head>\n<body>\n' + body_part + '\n</body>\n</html>\n')
+open(os.path.join(here, '..', 'lesson-generator-chat.html'), 'w', encoding='utf8').write(full)
 print(len(out))
