@@ -1547,11 +1547,18 @@ var WS = (function () {
       if (!(window.claude && window.claude.use)) why = 'noviewer';
       else { sample = await window.claude.use('sample'); if (!sample) why = 'unavailable'; }
     } catch (e) { sample = null; why = 'unavailable'; }
+    var diag = '';
+    if (why) {
+      var framed = false; try { framed = window.parent !== window; } catch (e) { framed = true; }
+      var perm = '';
+      try { var pm = window.claude && window.claude.use ? await window.claude.use('permissions') : null; if (pm && pm.state) perm = await pm.state('sample'); } catch (e) {}
+      diag = '（診斷：' + (framed ? '在檢視器框架內' : '頁面直接開啟') + '、AI 功能 ' + (why === 'noviewer' ? '不存在' : '未提供') + (perm ? '、授權狀態 ' + perm : '') + '）';
+    }
     if (why) {
       var note = why === 'noviewer'
         ? '這個頁面不是在 Claude 的 artifact 檢視器裡開啟，所以沒有內建 AI。'
-        : 'Claude 沒有對這個頁面開放 AI（可能是這個帳號或組織未開放，或載入逾時）。';
-      $('aiNote').textContent = note + '已改用手動模式：複製提示詞到你的免費 AI，再把回覆貼回來。';
+        : 'Claude 沒有對這個頁面開放 AI。常見原因：沒有登入 Claude、你的帳號和發佈者不在同一個組織、組織政策關閉，或載入逾時。';
+      $('aiNote').textContent = note + '已改用手動模式：按「下一步」後會跳出視窗，複製提示詞到你的免費 AI，再把回覆貼回來，一樣能完成教案。' + diag;
       $('aiNote').hidden = false; $('manualSw').checked = true; $('manualSw').disabled = true;
     }
     try { downloads = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null; $('save').hidden = !downloads; } catch (e) { downloads = null; }
