@@ -860,14 +860,15 @@ __WS__
     var diag = '';
     if (why) {
       var framed = false; try { framed = window.parent !== window; } catch (e) { framed = true; }
-      var perm = '';
-      try { var pm = window.claude && window.claude.use ? await window.claude.use('permissions') : null; if (pm && pm.state) perm = await pm.state('sample'); } catch (e) {}
-      diag = '（診斷：' + (framed ? '在檢視器框架內' : '頁面直接開啟') + '、AI 功能 ' + (why === 'noviewer' ? '不存在' : '未提供') + (perm ? '、授權狀態 ' + perm : '') + '）';
+      var perm = '', who = '', served = '';
+      try { var pm = window.claude && window.claude.use ? await window.claude.use('permissions') : null; if (pm && pm.state) { var all = await pm.state(); served = Object.keys(all || {}).join('/') || '無'; perm = all && all.sample ? all.sample : '未列出'; } else perm = '權限介面不存在'; } catch (e) { perm = '權限查詢失敗'; }
+      try { var u = window.claude && window.claude.use ? await window.claude.use('user') : null; who = !u ? '非組織成員或未登入' : ((await u.isOwner()) ? '擁有者' : (await u.canEdit()) ? '可編輯者' : '組織成員／來賓'); } catch (e) { who = '身分查詢失敗'; }
+      diag = '（診斷：' + (framed ? '在檢視器框架內' : '頁面直接開啟') + '、AI 功能 ' + (why === 'noviewer' ? '不存在' : '未提供') + '、授權 ' + perm + '、可用功能 ' + served + '、身分 ' + who + '）';
     }
     if (why) {
       var note = why === 'noviewer'
         ? '這個頁面不是在 Claude 的 artifact 檢視器裡開啟，所以沒有內建 AI。'
-        : 'Claude 沒有對這個頁面開放 AI。常見原因：沒有登入 Claude、你的帳號和發佈者不在同一個組織、組織政策關閉，或載入逾時。';
+        : 'Claude 沒有對這個頁面開放內建 AI。依目前測試，這個連結的內建 AI 只開放給發佈者所屬組織的成員；用連結或 email 邀請打開的帳號（免費或付費都一樣）拿不到。';
       $('aiNote').textContent = note + '已改用手動模式：按「下一步」後會跳出視窗，複製提示詞到你的免費 AI，再把回覆貼回來，一樣能完成教案。' + diag;
       $('aiNote').hidden = false; $('manualSw').checked = true; $('manualSw').disabled = true;
     }
